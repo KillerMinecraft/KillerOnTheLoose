@@ -1,0 +1,7 @@
+name: Mystery Killer
+main: com.ftwinston.Killer.MysteryKiller.Plugin
+depend: [Killer]
+version: 1
+load: STARTUP
+description: A game mode for Killer Minecraft
+author: FTWinston
