@@ -60,15 +60,6 @@ public class MysteryKiller extends GameMode
 	}
 	
 	@Override
-	public String describeTeam(int team, boolean plural)
-	{
-		if ( team == 1 )
-			return plural ? "killers" : "killer";
-		else
-			return plural ? "friendly players" : "friendly player";
-	}
-	
-	@Override
 	public String getHelpMessage(int num, int team)
 	{
 		switch ( num )
