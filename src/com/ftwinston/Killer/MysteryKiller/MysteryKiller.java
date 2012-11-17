@@ -202,9 +202,23 @@ public class MysteryKiller extends GameMode
 			setTeam(player, 0);
 		
 		if ( getOption(dontAssignKillerUntilSecondDay).isEnabled() )
-		{
-			// check based on the time of day
-			// ...
+		{// check based on the time of day
+			allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
+				long lastRun = 0;
+				public void run()
+				{
+					long time = getPlugin().getServer().getWorlds().get(0).getTime();
+					
+					if ( time < lastRun ) // time of day has gone backwards: must be a new day! Allocate the killers
+					{
+						allocateKillers();
+						getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
+						allocationProcessID = -1;
+					}
+					
+					lastRun = time;
+				}
+			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)			
 		}
 		else // allocate in 30 seconds
 			allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
