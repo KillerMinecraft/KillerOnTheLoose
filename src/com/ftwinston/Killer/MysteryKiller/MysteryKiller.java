@@ -177,7 +177,7 @@ public class MysteryKiller extends GameMode
 	}
 	
 	@Override
-	public boolean isAllowedToRespawn(Player player) { return false; }
+	public boolean isAllowedToRespawn(Player player) { return getOnlinePlayers(1).size() == 0; } // respawn if no killers allocated
 	
 	@Override
 	public boolean lateJoinersMustSpectate() { return false; }
@@ -434,7 +434,7 @@ public class MysteryKiller extends GameMode
 	@Override
 	public void playerKilledOrQuit(OfflinePlayer player)
 	{
-		if ( hasGameFinished() )
+		if ( hasGameFinished() || getOnlinePlayers(1).size() == 0 )
 			return;
 		
 		int numFriendlies = getOnlinePlayers(0, true).size();
