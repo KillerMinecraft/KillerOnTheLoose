@@ -213,7 +213,16 @@ public class MysteryKiller extends GameMode
 					{
 						allocateKillers();
 						getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
-						allocationProcessID = -1;
+						
+						if ( getOption(autoReallocateKillers).isEnabled() )
+							allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
+								public void run()
+								{
+									allocateKillers();									
+								}
+							}, 1800L, 1800L); // check every 90 seconds
+						else
+							allocationProcessID = -1;
 					}
 					
 					lastRun = time;
@@ -225,7 +234,16 @@ public class MysteryKiller extends GameMode
 				public void run()
 				{
 					allocateKillers();
-					allocationProcessID = -1;
+
+					if ( getOption(autoReallocateKillers).isEnabled() )
+						allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
+							public void run()
+							{
+								allocateKillers();									
+							}
+						}, 1800L, 1800L); // check every 90 seconds
+					else
+						allocationProcessID = -1;
 				}
 			}, 600L);
 	}
