@@ -180,9 +180,6 @@ public class MysteryKiller extends GameMode
 	public boolean isAllowedToRespawn(Player player) { return getOnlinePlayers(1).size() == 0; } // respawn if no killers allocated
 	
 	@Override
-	public boolean lateJoinersMustSpectate() { return false; }
-	
-	@Override
 	public boolean useDiscreetDeathMessages() { return true; }
 	
 	@Override
