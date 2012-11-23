@@ -467,15 +467,17 @@ public class MysteryKiller extends GameMode
 			return;
 		
 		int numFriendlies = getOnlinePlayers(0, true).size();
+		int numKillers = getOnlinePlayers(1, true).size();
+		
 		if ( numFriendlies != 0 )
 		{
 			// if only one person left (and they're not the killer), tell people they can /vote if they want to start a new game
-			if ( numFriendlies == 1 )
+			if ( numFriendlies == 1 && numKillers == 0 )
 				broadcastMessage("There's only one player left, and they're not the killer.\nIf you want to draw this game and start another, start a vote by typing " + ChatColor.YELLOW + "/vote");
 			return;
 		}
 		
-		if ( getOnlinePlayers(1, true).size() > 0 )
+		if ( numKillers > 0 )
 		{
 			broadcastMessage("All the friendly players died - the killer wins!");
 			finishGame(); // killers win
