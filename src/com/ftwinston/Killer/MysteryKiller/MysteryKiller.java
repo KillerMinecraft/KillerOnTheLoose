@@ -287,7 +287,7 @@ public class MysteryKiller extends GameMode
 		}
 		
 		players = getOnlinePlayers(0, true); // some have moved to team 1 now, so re-select
-		String message = numToAdd == 1 ? "A killer has been allocated. You are not the killer!" : numToAdd + " killers have been allocated. You are not a killer!"; 
+		String message = ChatColor.YELLOW + (numToAdd == 1 ? "A killer has been allocated. You are not the killer!" : numToAdd + " killers have been allocated. You are not a killer!"); 
 				
 		for ( Player player : players )
 			player.sendMessage(message);
