@@ -37,28 +37,7 @@ public class MysteryKiller extends GameMode
 		
 		return options;
 	}
-	
-	@Override
-	public String[] getSignDescription()
-	{
-		return new String[] {
-			"A player is",
-			"chosen to kill",
-			"the rest. Other",
-			"players aren't",
-			
-			"told who is the",
-			"killer! Death",
-			"messages are a",
-			"bit more vague.",
-
-			"The others must",
-			"get a blaze rod",
-			"and bring it to",
-			"the spawn point"
-		};
-	}
-	
+		
 	@Override
 	public String getHelpMessage(int num, int team)
 	{
