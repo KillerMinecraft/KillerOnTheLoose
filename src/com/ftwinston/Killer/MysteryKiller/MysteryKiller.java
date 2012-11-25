@@ -224,7 +224,7 @@ public class MysteryKiller extends GameMode
 					
 					lastRun = time;
 				}
-			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)			
+			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)
 		}
 		else // allocate in 30 seconds
 			allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
@@ -447,6 +447,13 @@ public class MysteryKiller extends GameMode
 		}
 		
 		// announce who the killer(s) was/were
+		List<Player> killers = getOnlinePlayers(1);
+		String message = killers.size() == 1 ? "The killer was: " : "The killers were:\n";
+		
+		for ( Player killer : killers )
+			message += killer.getName() + "\n";
+				
+		broadcastMessage(message);
 	}
 	
 	@Override
