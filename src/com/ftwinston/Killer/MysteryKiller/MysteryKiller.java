@@ -8,7 +8,6 @@ import com.ftwinston.Killer.Settings;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.World;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -141,12 +140,9 @@ public class MysteryKiller extends GameMode
 	public boolean teamAllocationIsSecret() { return true; }
 	
 	@Override
-	public boolean usesNether() { return true; }
-	
-	@Override
-	public void worldGenerationComplete(World main, World nether)
+	public void worldGenerationComplete()
 	{
-		generatePlinth(main);
+		generatePlinth(getWorld(0));
 	}
 	
 	@Override
@@ -164,7 +160,7 @@ public class MysteryKiller extends GameMode
 	@Override
 	public Location getSpawnLocation(Player player)
 	{
-		Location spawnPoint = randomizeLocation(getMainWorld().getSpawnLocation(), 0, 0, 0, 8, 0, 8);
+		Location spawnPoint = randomizeLocation(getWorld(0).getSpawnLocation(), 0, 0, 0, 8, 0, 8);
 		return getSafeSpawnLocationNear(spawnPoint);
 	}
 	
