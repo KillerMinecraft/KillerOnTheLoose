@@ -3,6 +3,7 @@ package com.ftwinston.Killer.MysteryKiller;
 import java.util.List;
 
 import com.ftwinston.Killer.GameMode;
+import com.ftwinston.Killer.Option;
 import com.ftwinston.Killer.Settings;
 
 import org.bukkit.ChatColor;
