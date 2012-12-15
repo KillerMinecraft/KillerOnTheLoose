@@ -4,7 +4,6 @@ import java.util.List;
 
 import com.ftwinston.Killer.GameMode;
 import com.ftwinston.Killer.Option;
-import com.ftwinston.Killer.Settings;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -18,6 +17,7 @@ import org.bukkit.Material;
 public class MysteryKiller extends GameMode
 {
 	public static final int dontAssignKillerUntilSecondDay = 0, autoReallocateKillers = 1, allowMultipleKillers = 2;
+	static final Material[] winningItems = { Material.BLAZE_ROD, Material.GHAST_TEAR };
 	
 	@Override
 	public String getName() { return "Mystery Killer"; }
@@ -93,14 +93,14 @@ public class MysteryKiller extends GameMode
 			case 2:
 				String message = "To win, the other players must bring a ";
 				
-				message += tidyItemName(Settings.winningItems[0]);
+				message += tidyItemName(winningItems[0]);
 				
-				if ( Settings.winningItems.length > 1 )
+				if ( winningItems.length > 1 )
 				{
-					for ( int i=1; i<Settings.winningItems.length-1; i++)
-						message += ", a " + tidyItemName(Settings.winningItems[i]);
+					for ( int i=1; i<winningItems.length-1; i++)
+						message += ", a " + tidyItemName(winningItems[i]);
 					
-					message += " or a " + tidyItemName(Settings.winningItems[Settings.winningItems.length-1]);
+					message += " or a " + tidyItemName(winningItems[winningItems.length-1]);
 				}
 				
 				message += " to the plinth near the spawn.";
@@ -487,7 +487,7 @@ public class MysteryKiller extends GameMode
 		// see if the player's inventory contains a winning item
 		PlayerInventory inv = player.getInventory();
 		
-		for ( Material material : Settings.winningItems )
+		for ( Material material : winningItems )
 			if ( inv.contains(material) )
 			{
 				broadcastMessage(player.getName() + " brought a " + tidyItemName(material) + " to the plinth - the friendly players win!");
