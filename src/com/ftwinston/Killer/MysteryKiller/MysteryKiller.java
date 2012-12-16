@@ -141,12 +141,6 @@ public class MysteryKiller extends GameMode
 	public boolean teamAllocationIsSecret() { return true; }
 	
 	@Override
-	public void worldGenerationComplete()
-	{
-		generatePlinth(getWorld(0));
-	}
-	
-	@Override
 	public boolean isLocationProtected(Location l)
 	{
 		return isOnPlinth(l); // no protection, except for the plinth
@@ -168,8 +162,12 @@ public class MysteryKiller extends GameMode
 	int allocationProcessID = -1;
 	
 	@Override
-	public void gameStarted()
+	public void gameStarted(boolean isNewWorlds)
 	{
+		if ( isNewWorlds )
+			generatePlinth(getWorld(0));
+		
+		
 		List<Player> players = getOnlinePlayers(true);
 		for ( Player player : players )
 			setTeam(player, 0);
