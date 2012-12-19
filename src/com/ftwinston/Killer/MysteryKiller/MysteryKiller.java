@@ -3,7 +3,9 @@ package com.ftwinston.Killer.MysteryKiller;
 import java.util.List;
 
 import com.ftwinston.Killer.GameMode;
+import com.ftwinston.Killer.Helper;
 import com.ftwinston.Killer.Option;
+import com.ftwinston.Killer.PlayerFilter;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -51,7 +53,7 @@ public class MysteryKiller extends GameMode
 					else
 						return "You have been chosen to try and kill everyone else.\nNo one else has been told who was chosen.";
 				}
-				else if ( getOnlinePlayers(1, false).size() > 0 )
+				else if ( getPlayers(new PlayerFilter().team(1)).size() > 0 )
 				{
 					if ( getOption(allowMultipleKillers).isEnabled() )
 						return "(At least) one player has been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
@@ -93,14 +95,14 @@ public class MysteryKiller extends GameMode
 			case 2:
 				String message = "To win, the other players must bring a ";
 				
-				message += tidyItemName(winningItems[0]);
+				message += Helper.tidyItemName(winningItems[0]);
 				
 				if ( winningItems.length > 1 )
 				{
 					for ( int i=1; i<winningItems.length-1; i++)
-						message += ", a " + tidyItemName(winningItems[i]);
+						message += ", a " + Helper.tidyItemName(winningItems[i]);
 					
-					message += " or a " + tidyItemName(winningItems[winningItems.length-1]);
+					message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
 				}
 				
 				message += " to the plinth near the spawn.";
@@ -147,7 +149,7 @@ public class MysteryKiller extends GameMode
 	}
 	
 	@Override
-	public boolean isAllowedToRespawn(Player player) { return getOnlinePlayers(1).size() == 0; } // respawn if no killers allocated
+	public boolean isAllowedToRespawn(Player player) { return getPlayers(new PlayerFilter().team(1)).size() == 0; } // respawn if no killers allocated
 	
 	@Override
 	public boolean useDiscreetDeathMessages() { return true; }
@@ -155,8 +157,8 @@ public class MysteryKiller extends GameMode
 	@Override
 	public Location getSpawnLocation(Player player)
 	{
-		Location spawnPoint = randomizeLocation(getWorld(0).getSpawnLocation(), 0, 0, 0, 8, 0, 8);
-		return getSafeSpawnLocationNear(spawnPoint);
+		Location spawnPoint = Helper.randomizeLocation(getWorld(0).getSpawnLocation(), 0, 0, 0, 8, 0, 8);
+		return Helper.getSafeSpawnLocationNear(spawnPoint);
 	}
 	
 	int allocationProcessID = -1;
@@ -168,9 +170,9 @@ public class MysteryKiller extends GameMode
 			generatePlinth(getWorld(0));
 		
 		
-		List<Player> players = getOnlinePlayers(true);
+		List<Player> players = getOnlinePlayers(new PlayerFilter().alive());
 		for ( Player player : players )
-			setTeam(player, 0);
+			Helper.setTeam(player, 0);
 		
 		if ( getOption(dontAssignKillerUntilSecondDay).isEnabled() )
 		{// check based on the time of day
@@ -221,9 +223,9 @@ public class MysteryKiller extends GameMode
 	
 	private void allocateKillers()
 	{
-		int numAlive = getOnlinePlayers(true).size();
-		int numKillers = getOnlinePlayers(1).size();
-		int numAliveKillers = getOnlinePlayers(1, true).size();
+		int numAlive = getOnlinePlayers(new PlayerFilter().alive()).size();
+		int numKillers = getOnlinePlayers(new PlayerFilter().team(1)).size();
+		int numAliveKillers = getOnlinePlayers(new PlayerFilter().alive().team(1)).size();
 		
 		int numToAdd;
 	
@@ -246,11 +248,11 @@ public class MysteryKiller extends GameMode
 			return;
 
 		// pick players
-		List<Player> players = getOnlinePlayers(0, true);
+		List<Player> players = getOnlinePlayers(new PlayerFilter().alive().team(0));
 		float numFriendliesPerKiller = (float)(players.size() - numToAdd) / (float)(numAliveKillers + numToAdd);
 		for ( int i=0; i<numToAdd; i++ )
 		{
-			Player killer = selectRandom(players);
+			Player killer = Helper.selectRandom(players);
 			if ( killer == null )
 			{
 				broadcastMessage("Error selecting player to allocate as the killer");
@@ -260,7 +262,7 @@ public class MysteryKiller extends GameMode
 			prepareKiller(killer, numToAdd, numFriendliesPerKiller);
 		}
 		
-		players = getOnlinePlayers(0, true); // some have moved to team 1 now, so re-select
+		players = getOnlinePlayers(new PlayerFilter().alive().team(0)); // some have moved to team 1 now, so re-select
 		String message = ChatColor.YELLOW + (numToAdd == 1 ? "A killer has been allocated. You are not the killer!" : numToAdd + " killers have been allocated. You are not a killer!"); 
 				
 		for ( Player player : players )
@@ -269,7 +271,7 @@ public class MysteryKiller extends GameMode
 	
 	private void prepareKiller(Player player, int numKillersAllocated, float numFriendliesPerKiller)
 	{
-		setTeam(player, 1);
+		Helper.setTeam(player, 1);
 		
 		// this ougth to say "a" if multiple killers are/have been present in the game
 		String message = ChatColor.RED.toString();
@@ -421,10 +423,10 @@ public class MysteryKiller extends GameMode
 		}
 		
 		// announce who the killer(s) was/were
-		List<Player> killers = getOnlinePlayers(1);
+		List<OfflinePlayer> killers = getPlayers(new PlayerFilter().team(1));
 		String message = killers.size() == 1 ? "The killer was: " : "The killers were:\n";
 		
-		for ( Player killer : killers )
+		for ( OfflinePlayer killer : killers )
 			message += killer.getName() + "\n";
 				
 		broadcastMessage(message);
@@ -434,9 +436,9 @@ public class MysteryKiller extends GameMode
 	public void playerJoinedLate(Player player, boolean isNewPlayer)
 	{
 		if ( isNewPlayer )
-			setTeam(player, 0);
-		else if ( getTeam(player) == 1 ) // inform them that they're still a killer
-			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getOnlinePlayers(1).size() > 1 ? "a" : "the" ) + " killer!"); 
+			Helper.setTeam(player, 0);
+		else if ( Helper.getTeam(player) == 1 ) // inform them that they're still a killer
+			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(1)).size() > 1 ? "a" : "the" ) + " killer!"); 
 		else
 			player.sendMessage("Welcome back. You are not the killer, and you're still alive.");
 	}
@@ -444,11 +446,11 @@ public class MysteryKiller extends GameMode
 	@Override
 	public void playerKilledOrQuit(OfflinePlayer player)
 	{
-		if ( hasGameFinished() || getOnlinePlayers(1).size() == 0 )
+		if ( hasGameFinished() || getOnlinePlayers(new PlayerFilter().team(1)).size() == 0 )
 			return;
 		
-		int numFriendlies = getOnlinePlayers(0, true).size();
-		int numKillers = getOnlinePlayers(1, true).size();
+		int numFriendlies = getOnlinePlayers(new PlayerFilter().alive().team(0)).size();
+		int numKillers = getOnlinePlayers(new PlayerFilter().alive().team(1)).size();
 		
 		if ( numFriendlies != 0 )
 		{
@@ -473,8 +475,9 @@ public class MysteryKiller extends GameMode
 	@Override
 	public Location getCompassTarget(Player player)
 	{
-		if ( getTeam(player) == 1 )
-			return getNearestPlayerTo(player, true); // points in a random direction if no players are found
+		int team = Helper.getTeam(player);
+		if ( team == 1 )
+			return Helper.getNearestPlayerTo(player, getOnlinePlayers(new PlayerFilter().alive().notTeam(team))); // points in a random direction if no players are found
 		
 		return null;
 	}
@@ -488,7 +491,7 @@ public class MysteryKiller extends GameMode
 		for ( Material material : winningItems )
 			if ( inv.contains(material) )
 			{
-				broadcastMessage(player.getName() + " brought a " + tidyItemName(material) + " to the plinth - the friendly players win!");
+				broadcastMessage(player.getName() + " brought a " + Helper.tidyItemName(material) + " to the plinth - the friendly players win!");
 				finishGame(); // winning item brought to the plinth, friendlies win
 				break;
 			}
