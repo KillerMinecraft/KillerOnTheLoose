@@ -12,6 +12,9 @@ import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.Material;
@@ -145,7 +148,12 @@ public class MysteryKiller extends GameMode
 	@Override
 	public boolean isLocationProtected(Location l)
 	{
-		return isOnPlinth(l); // no protection, except for the plinth
+		// no protection, except for the plinth
+		return  plinthLoc != null && l.getWorld() == plinthLoc.getWorld()
+	            && l.getX() >= plinthLoc.getBlockX() - 1
+	            && l.getX() <= plinthLoc.getBlockX() + 1
+	            && l.getZ() >= plinthLoc.getBlockZ() - 1
+	            && l.getZ() <= plinthLoc.getBlockZ() + 1;
 	}
 	
 	@Override
@@ -163,12 +171,13 @@ public class MysteryKiller extends GameMode
 	
 	int allocationProcessID = -1;
 	
+	Location plinthLoc;
+	
 	@Override
 	public void gameStarted(boolean isNewWorlds)
 	{
 		if ( isNewWorlds )
-			generatePlinth(getWorld(0));
-		
+			plinthLoc = Helper.generatePlinth(getWorld(0));
 		
 		List<Player> players = getOnlinePlayers(new PlayerFilter().alive());
 		for ( Player player : players )
@@ -482,18 +491,21 @@ public class MysteryKiller extends GameMode
 		return null;
 	}
 
-	@Override
-	public void playerActivatedPlinth(Player player)
+	@EventHandler
+	public void onPlayerInteract(PlayerInteractEvent event)
 	{
-		// see if the player's inventory contains a winning item
-		PlayerInventory inv = player.getInventory();
-		
-		for ( Material material : winningItems )
-			if ( inv.contains(material) )
-			{
-				broadcastMessage(player.getName() + " brought a " + Helper.tidyItemName(material) + " to the plinth - the friendly players win!");
-				finishGame(); // winning item brought to the plinth, friendlies win
-				break;
-			}
+		if(event.getClickedBlock() != null && event.getClickedBlock().getType() == Material.STONE_PLATE && event.getAction() == Action.PHYSICAL && plinthLoc != null && event.getClickedBlock().getX() == plinthLoc.getBlockX() && event.getClickedBlock().getZ() == plinthLoc.getBlockZ())
+	  	{
+			// see if the player's inventory contains a winning item
+			PlayerInventory inv = event.getPlayer().getInventory();
+			
+			for ( Material material : winningItems )
+				if ( inv.contains(material) )
+				{
+					broadcastMessage(event.getPlayer().getName() + " brought a " + Helper.tidyItemName(material) + " to the plinth - the friendly players win!");
+					finishGame(); // winning item brought to the plinth, friendlies win
+					break;
+				}
+	  	}
 	}
 }
