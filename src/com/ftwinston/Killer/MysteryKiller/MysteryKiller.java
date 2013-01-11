@@ -146,7 +146,7 @@ public class MysteryKiller extends GameMode
 	public boolean teamAllocationIsSecret() { return true; }
 	
 	@Override
-	public boolean isLocationProtected(Location l)
+	public boolean isLocationProtected(Location l, Player p)
 	{
 		// no protection, except for the plinth
 		return  plinthLoc != null && l.getWorld() == plinthLoc.getWorld()
@@ -181,7 +181,7 @@ public class MysteryKiller extends GameMode
 		
 		List<Player> players = getOnlinePlayers(new PlayerFilter().alive());
 		for ( Player player : players )
-			Helper.setTeam(player, 0);
+			Helper.setTeam(getGame(), player, 0);
 		
 		if ( getOption(dontAssignKillerUntilSecondDay).isEnabled() )
 		{// check based on the time of day
@@ -280,7 +280,7 @@ public class MysteryKiller extends GameMode
 	
 	private void prepareKiller(Player player, int numKillersAllocated, float numFriendliesPerKiller)
 	{
-		Helper.setTeam(player, 1);
+		Helper.setTeam(getGame(), player, 1);
 		
 		// this ougth to say "a" if multiple killers are/have been present in the game
 		String message = ChatColor.RED.toString();
@@ -445,8 +445,8 @@ public class MysteryKiller extends GameMode
 	public void playerJoinedLate(Player player, boolean isNewPlayer)
 	{
 		if ( isNewPlayer )
-			Helper.setTeam(player, 0);
-		else if ( Helper.getTeam(player) == 1 ) // inform them that they're still a killer
+			Helper.setTeam(getGame(), player, 0);
+		else if ( Helper.getTeam(getGame(), player) == 1 ) // inform them that they're still a killer
 			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(1)).size() > 1 ? "a" : "the" ) + " killer!"); 
 		else
 			player.sendMessage("Welcome back. You are not the killer, and you're still alive.");
@@ -484,7 +484,7 @@ public class MysteryKiller extends GameMode
 	@Override
 	public Location getCompassTarget(Player player)
 	{
-		int team = Helper.getTeam(player);
+		int team = Helper.getTeam(getGame(), player);
 		if ( team == 1 )
 			return Helper.getNearestPlayerTo(player, getOnlinePlayers(new PlayerFilter().alive().notTeam(team))); // points in a random direction if no players are found
 		
