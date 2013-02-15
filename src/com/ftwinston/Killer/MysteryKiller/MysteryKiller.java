@@ -12,6 +12,7 @@ import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -491,7 +492,7 @@ public class MysteryKiller extends GameMode
 		return null;
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onPlayerInteract(PlayerInteractEvent event)
 	{
 		if(event.getClickedBlock() != null && event.getClickedBlock().getType() == Material.STONE_PLATE && event.getAction() == Action.PHYSICAL && plinthLoc != null && event.getClickedBlock().getX() == plinthLoc.getBlockX() && event.getClickedBlock().getZ() == plinthLoc.getBlockZ())
