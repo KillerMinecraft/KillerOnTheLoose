@@ -60,6 +60,22 @@ public class Killer extends GameMode
 	public TeamInfo[] getTeams() { return teams; }
 	
 	@Override
+	public void allocateTeams(List<Player> players)
+	{
+		// pick a killer immediately, if not on mystery killer.
+		if ( killerType.getValue() != KillerType.MYSTERY_KILLER )
+		{
+			int index = random.nextInt(players.size());
+			Player player = players.remove(index);
+			setTeam(player, killer);
+		}
+		
+		// put everyone (else) into the survivors
+		for ( Player player : players )
+			setTeam(player, survivors);	
+	}
+	
+	@Override
 	public Option[] setupOptions()
 	{
 		dontAssignKillerUntilSecondDay = new ToggleOption("Don't assign killer until the second day", true);
@@ -216,10 +232,6 @@ public class Killer extends GameMode
 	{
 		plinthLoc = Helper.generatePlinth(getWorld(0));
 		
-		List<Player> players = getOnlinePlayers(new PlayerFilter().alive());
-		for ( Player player : players )
-			Helper.setTeam(getGame(), player, survivors);
-		
 		if ( dontAssignKillerUntilSecondDay.isEnabled() )
 		{// check based on the time of day
 			allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
@@ -248,23 +260,23 @@ public class Killer extends GameMode
 				}
 			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)
 		}
-		else // allocate in 30 seconds
-			allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
-				public void run()
-				{
-					allocateKillers();
-
-					if ( autoReallocateKillers.isEnabled() )
-						allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
-							public void run()
-							{
-								allocateKillers();									
-							}
-						}, 1800L, 1800L); // check every 90 seconds
-					else
-						allocationProcessID = -1;
-				}
-			}, 600L);
+		else // immediate allocation (team already been assigned)
+		{
+			List<Player> killers = getOnlinePlayers(new PlayerFilter().team(killer));
+			float ratio = ((float)getOnlinePlayers(new PlayerFilter().team(survivors)).size())/killers.size();
+			for ( Player player : killers )
+				prepareKiller(player, killers.size(), ratio);
+			
+			if ( autoReallocateKillers.isEnabled() )
+				allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
+						public void run()
+						{
+							allocateKillers();									
+						}
+					}, 1800L, 1800L); // check every 90 seconds
+			else
+				allocationProcessID = -1;
+		}
 	}
 	
 	private void allocateKillers()
@@ -298,14 +310,15 @@ public class Killer extends GameMode
 		float numFriendliesPerKiller = (float)(players.size() - numToAdd) / (float)(numAliveKillers + numToAdd);
 		for ( int i=0; i<numToAdd; i++ )
 		{
-			Player killer = Helper.selectRandom(players);
-			if ( killer == null )
+			Player player = Helper.selectRandom(players);
+			if ( player == null )
 			{
 				broadcastMessage("Error selecting player to allocate as the killer");
 				return;
 			}
-			
-			prepareKiller(killer, numToAdd, numFriendliesPerKiller);
+
+			setTeam(player,  killer);
+			prepareKiller(player, numToAdd, numFriendliesPerKiller);
 		}
 		
 		players = getOnlinePlayers(new PlayerFilter().alive().team(survivors)); // some have moved to the killer team now, so re-select
@@ -317,8 +330,6 @@ public class Killer extends GameMode
 	
 	private void prepareKiller(Player player, int numKillersAllocated, float numFriendliesPerKiller)
 	{
-		Helper.setTeam(getGame(), player, killer);
-		
 		// this ougth to say "a" if multiple killers are/have been present in the game
 		String message = ChatColor.RED.toString();
 		if ( numKillersAllocated == 1 )
@@ -482,7 +493,7 @@ public class Killer extends GameMode
 	public void playerJoined(Player player, boolean isNewPlayer)
 	{
 		if ( isNewPlayer )
-			Helper.setTeam(getGame(), player, survivors);
+			setTeam(player,  survivors);
 		else if ( Helper.getTeam(getGame(), player) == killer ) // inform them that they're still a killer
 			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(killer)).size() > 1 ? "a" : "the" ) + " killer!"); 
 		else
