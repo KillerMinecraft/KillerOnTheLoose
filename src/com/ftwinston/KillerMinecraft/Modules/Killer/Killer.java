@@ -1,15 +1,20 @@
-package com.ftwinston.Killer.MysteryKiller;
+package com.ftwinston.KillerMinecraft.Modules.Killer;
 
 import java.util.List;
 
-import com.ftwinston.Killer.GameMode;
-import com.ftwinston.Killer.Helper;
-import com.ftwinston.Killer.Option;
-import com.ftwinston.Killer.PlayerFilter;
+import com.ftwinston.KillerMinecraft.GameMode;
+import com.ftwinston.KillerMinecraft.Helper;
+import com.ftwinston.KillerMinecraft.KillerMinecraft;
+import com.ftwinston.KillerMinecraft.Option;
+import com.ftwinston.KillerMinecraft.PlayerFilter;
+import com.ftwinston.KillerMinecraft.Configuration.ChoiceOption;
+import com.ftwinston.KillerMinecraft.Configuration.TeamInfo;
+import com.ftwinston.KillerMinecraft.Configuration.ToggleOption;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.World.Environment;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
@@ -20,78 +25,96 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.Material;
 
-public class MysteryKiller extends GameMode
+public class Killer extends GameMode
 {
-	public static final int dontAssignKillerUntilSecondDay = 0, autoReallocateKillers = 1, allowMultipleKillers = 2;
-	static final Material[] winningItems = { Material.BLAZE_ROD, Material.GHAST_TEAR };
+	ToggleOption dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers;
+	ChoiceOption killerType;
 	
-	@Override
-	public String getName() { return "Mystery Killer"; }
+	static final Material[] winningItems = { Material.BLAZE_ROD, Material.GHAST_TEAR };
 
 	@Override
 	public int getMinPlayers() { return 3; }
 	
+	TeamInfo survivors = new TeamInfo() {
+		@Override
+		public String getName() { return "Survivors"; }
+		@Override
+		public boolean allowTeamChat() { return !killerType.getValue().equals("Mystery Killer"); }
+	};
+	TeamInfo killer = new TeamInfo() {
+		@Override
+		public String getName() { return "Killer"; }
+		@Override
+		public boolean allowTeamChat() { return false; }
+	};
+	TeamInfo[] teams = new TeamInfo[] { survivors, killer };
+	
+	@Override
+	public TeamInfo[] getTeams() { return teams; }
+	
 	@Override
 	public Option[] setupOptions()
 	{
-		Option[] options =
-		{
-			new Option("Don't assign killer until the second day", true),
-			new Option("Allocate new killer if old ones die", true),
-			new Option("Assign multiple killers if lots of people play", false)
-		};
+		dontAssignKillerUntilSecondDay = new ToggleOption("Don't assign killer until the second day", true);
+		autoReallocateKillers = new ToggleOption("Allocate new killer if old ones die", true);
+		allowMultipleKillers = new ToggleOption("Assign multiple killers if lots of people play", false);
 		
-		return options;
+		killerType = new ChoiceOption("Killer type");
+		killerType.addChoice("Mystery Killer", Material.FLINT_AND_STEEL, "No special powers, but", "Killer's identity is", "kept secret");
+		killerType.addChoice("Invisible Killer", Material.GLASS, "Killer can't be seen,", "other players get infinity", "bows and warnings when", "the killer is nearby");
+		killerType.addChoice("Crazy Killer", Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
+		
+		return new Option[] { dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers, killerType };
 	}
 		
 	@Override
-	public String getHelpMessage(int num, int team)
+	public String getHelpMessage(int num, TeamInfo team)
 	{
 		switch ( num )
 		{
 			case 0:
-				if ( team == 1 )
+				if ( team == killer )
 				{
-					if ( getOption(allowMultipleKillers).isEnabled() )
+					if ( allowMultipleKillers.isEnabled() )
 						return "You have been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will have been chosen.\nNo one else has been told who was chosen.";
 					else
 						return "You have been chosen to try and kill everyone else.\nNo one else has been told who was chosen.";
 				}
-				else if ( getPlayers(new PlayerFilter().team(1)).size() > 0 )
+				else if ( getPlayers(new PlayerFilter().team(killer)).size() > 0 )
 				{
-					if ( getOption(allowMultipleKillers).isEnabled() )
+					if ( allowMultipleKillers.isEnabled() )
 						return "(At least) one player has been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
 					else
 						return "One player has been chosen to try and kill everyone else. No one else has been told who it is.";
 				}
 				else
 				{
-					if ( getOption(dontAssignKillerUntilSecondDay).isEnabled() )
+					if ( dontAssignKillerUntilSecondDay.isEnabled() )
 					{
-						if ( getOption(allowMultipleKillers).isEnabled() )
+						if ( allowMultipleKillers.isEnabled() )
 							return "At the start of the next game day, (at least) one player will be chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
 						else
 							return "At the start of the next game day, one player will be chosen to try and kill everyone else.\nNo one else will be told who it is.";
 					}
 					else
 					{
-						if ( getOption(allowMultipleKillers).isEnabled() )
+						if ( allowMultipleKillers.isEnabled() )
 							return "(At least) one player will shortly be chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
 						else
 							return "One player will shortly be chosen to try and kill everyone else.\nNo one else will be told who it is.";
 					}
 				}
 			case 1:
-				if ( team == 1 )
+				if ( team == killer )
 				{
-					if ( getOption(allowMultipleKillers).isEnabled() )
+					if ( allowMultipleKillers.isEnabled() )
 						return "As a killer, you win if all the friendly players die. You won't be told who the other killers are.";
 					else
 						return "As the killer, you win if everyone else dies.";
 				}
 				else
 				{
-					if ( getOption(allowMultipleKillers).isEnabled() )
+					if ( allowMultipleKillers.isEnabled() )
 						return "The killers win if everyone else dies... so watch your back!";
 					else
 						return "The killer wins if everyone else dies... so watch your back!";
@@ -112,16 +135,16 @@ public class MysteryKiller extends GameMode
 				message += " to the plinth near the spawn.";
 				return message;
 			case 3:
-				if ( getOption(allowMultipleKillers).isEnabled() )
+				if ( allowMultipleKillers.isEnabled() )
 				{
-					if ( getOption(autoReallocateKillers).isEnabled() )
+					if ( autoReallocateKillers.isEnabled() )
 						return "The other players will not automatically win when all the killers are dead, and additional killers may be assigned once to replace dead ones.";
 					else
 						return "The other players will not automatically win when all the killers are dead.";
 				}
 				else
 				{
-					if ( getOption(autoReallocateKillers).isEnabled() )
+					if ( autoReallocateKillers.isEnabled() )
 						return "The other players will not automatically win when the killer dies, and another killer may be assigned once the first one is dead.";
 					else
 						return "The other players will not automatically win when the killer dies.";
@@ -131,13 +154,20 @@ public class MysteryKiller extends GameMode
 				return "Death messages won't say how someone died, or who killed them.";
 			
 			case 5:
-				if ( team == 1 )
+				if ( team == killer )
 					return "If you make a compass, it will point at the nearest player. This won't work for other players.";
-				else if ( getOption(allowMultipleKillers).isEnabled() )
+				else if ( allowMultipleKillers.isEnabled() )
 					return "If one of the killers make a compass, it will point at the nearest player. This won't work for other players.";
 				else
 					return "If the killer makes a compass, it will point at the nearest player. This won't work for other players.";
 
+			case 6:
+				return "Several monster eggs can be crafted by combining one of their dropped items with an iron ingot.";
+			case 7:
+				return "Dispensers can be crafted using a sapling instead of a bow. These work well with monster eggs.";
+			case 8:
+				return "Eyes of ender will help you find nether fortresses (to get blaze rods).\nThey can be crafted from an ender pearl and a spider eye.";
+				
 			default:
 				return null;
 		}
@@ -158,7 +188,7 @@ public class MysteryKiller extends GameMode
 	}
 	
 	@Override
-	public boolean isAllowedToRespawn(Player player) { return getPlayers(new PlayerFilter().team(1)).size() == 0; } // respawn if no killers allocated
+	public boolean isAllowedToRespawn(Player player) { return getPlayers(new PlayerFilter().team(killer)).size() == 0; } // respawn if no killers allocated
 	
 	@Override
 	public boolean useDiscreetDeathMessages() { return true; }
@@ -175,16 +205,15 @@ public class MysteryKiller extends GameMode
 	Location plinthLoc;
 	
 	@Override
-	public void gameStarted(boolean isNewWorlds)
+	public void gameStarted()
 	{
-		if ( isNewWorlds )
-			plinthLoc = Helper.generatePlinth(getWorld(0));
+		plinthLoc = Helper.generatePlinth(getWorld(0));
 		
 		List<Player> players = getOnlinePlayers(new PlayerFilter().alive());
 		for ( Player player : players )
-			Helper.setTeam(getGame(), player, 0);
+			Helper.setTeam(getGame(), player, survivors);
 		
-		if ( getOption(dontAssignKillerUntilSecondDay).isEnabled() )
+		if ( dontAssignKillerUntilSecondDay.isEnabled() )
 		{// check based on the time of day
 			allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
 				long lastRun = 0;
@@ -197,7 +226,7 @@ public class MysteryKiller extends GameMode
 						allocateKillers();
 						getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
 						
-						if ( getOption(autoReallocateKillers).isEnabled() )
+						if ( autoReallocateKillers.isEnabled() )
 							allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
 								public void run()
 								{
@@ -218,7 +247,7 @@ public class MysteryKiller extends GameMode
 				{
 					allocateKillers();
 
-					if ( getOption(autoReallocateKillers).isEnabled() )
+					if ( autoReallocateKillers.isEnabled() )
 						allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
 							public void run()
 							{
@@ -234,17 +263,17 @@ public class MysteryKiller extends GameMode
 	private void allocateKillers()
 	{
 		int numAlive = getOnlinePlayers(new PlayerFilter().alive()).size();
-		int numKillers = getOnlinePlayers(new PlayerFilter().team(1)).size();
-		int numAliveKillers = getOnlinePlayers(new PlayerFilter().alive().team(1)).size();
+		int numKillers = getOnlinePlayers(new PlayerFilter().team(killer)).size();
+		int numAliveKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
 		
 		int numToAdd;
 	
 		// if any killers have already been assigned, and we're not meant to reallocate, don't add any more
-		if ( !getOption(autoReallocateKillers).isEnabled() && numKillers > 0 )
+		if ( !autoReallocateKillers.isEnabled() && numKillers > 0 )
 			numToAdd = 0;
 		
 		// if we don't allow multiple killers, only ever add 0 or 1
-		else if ( !getOption(allowMultipleKillers).isEnabled() )
+		else if ( !allowMultipleKillers.isEnabled() )
 			numToAdd = numAliveKillers > 0 ? 0 : 1;
 
 		// 1-5 players should have 1 killer. 6-11 should have 2. 12-17 should have 3. 18-23 should have 4. 
@@ -258,7 +287,7 @@ public class MysteryKiller extends GameMode
 			return;
 
 		// pick players
-		List<Player> players = getOnlinePlayers(new PlayerFilter().alive().team(0));
+		List<Player> players = getOnlinePlayers(new PlayerFilter().alive().team(survivors));
 		float numFriendliesPerKiller = (float)(players.size() - numToAdd) / (float)(numAliveKillers + numToAdd);
 		for ( int i=0; i<numToAdd; i++ )
 		{
@@ -272,7 +301,7 @@ public class MysteryKiller extends GameMode
 			prepareKiller(killer, numToAdd, numFriendliesPerKiller);
 		}
 		
-		players = getOnlinePlayers(new PlayerFilter().alive().team(0)); // some have moved to team 1 now, so re-select
+		players = getOnlinePlayers(new PlayerFilter().alive().team(survivors)); // some have moved to the killer team now, so re-select
 		String message = ChatColor.YELLOW + (numToAdd == 1 ? "A killer has been allocated. You are not the killer!" : numToAdd + " killers have been allocated. You are not a killer!"); 
 				
 		for ( Player player : players )
@@ -281,7 +310,7 @@ public class MysteryKiller extends GameMode
 	
 	private void prepareKiller(Player player, int numKillersAllocated, float numFriendliesPerKiller)
 	{
-		Helper.setTeam(getGame(), player, 1);
+		Helper.setTeam(getGame(), player, killer);
 		
 		// this ougth to say "a" if multiple killers are/have been present in the game
 		String message = ChatColor.RED.toString();
@@ -433,7 +462,7 @@ public class MysteryKiller extends GameMode
 		}
 		
 		// announce who the killer(s) was/were
-		List<OfflinePlayer> killers = getPlayers(new PlayerFilter().team(1));
+		List<OfflinePlayer> killers = getPlayers(new PlayerFilter().team(killer));
 		String message = killers.size() == 1 ? "The killer was: " : "The killers were:\n";
 		
 		for ( OfflinePlayer killer : killers )
@@ -443,24 +472,24 @@ public class MysteryKiller extends GameMode
 	}
 	
 	@Override
-	public void playerJoinedLate(Player player, boolean isNewPlayer)
+	public void playerJoined(Player player, boolean isNewPlayer)
 	{
 		if ( isNewPlayer )
-			Helper.setTeam(getGame(), player, 0);
-		else if ( Helper.getTeam(getGame(), player) == 1 ) // inform them that they're still a killer
-			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(1)).size() > 1 ? "a" : "the" ) + " killer!"); 
+			Helper.setTeam(getGame(), player, survivors);
+		else if ( Helper.getTeam(getGame(), player) == killer ) // inform them that they're still a killer
+			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(killer)).size() > 1 ? "a" : "the" ) + " killer!"); 
 		else
 			player.sendMessage("Welcome back. You are not the killer, and you're still alive.");
 	}
 	
 	@Override
-	public void playerKilledOrQuit(OfflinePlayer player)
+	public void playerQuit(OfflinePlayer player)
 	{
-		if ( hasGameFinished() || getOnlinePlayers(new PlayerFilter().team(1)).size() == 0 )
+		if ( hasGameFinished() || getOnlinePlayers(new PlayerFilter().team(killer)).size() == 0 )
 			return;
 		
-		int numFriendlies = getOnlinePlayers(new PlayerFilter().alive().team(0)).size();
-		int numKillers = getOnlinePlayers(new PlayerFilter().alive().team(1)).size();
+		int numFriendlies = getOnlinePlayers(new PlayerFilter().alive().team(survivors)).size();
+		int numKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
 		
 		if ( numFriendlies != 0 )
 		{
@@ -485,8 +514,8 @@ public class MysteryKiller extends GameMode
 	@Override
 	public Location getCompassTarget(Player player)
 	{
-		int team = Helper.getTeam(getGame(), player);
-		if ( team == 1 )
+		TeamInfo team = Helper.getTeam(getGame(), player);
+		if ( team == killer )
 			return Helper.getNearestPlayerTo(player, getOnlinePlayers(new PlayerFilter().alive().notTeam(team))); // points in a random direction if no players are found
 		
 		return null;
@@ -505,8 +534,24 @@ public class MysteryKiller extends GameMode
 				{
 					broadcastMessage(event.getPlayer().getName() + " brought a " + Helper.tidyItemName(material) + " to the plinth - the friendly players win!");
 					finishGame(); // winning item brought to the plinth, friendlies win
-					break;
+					return;
 				}
 	  	}
+		
+		// eyes of ender can be made to seek out nether fortresses
+		else if ( event.getPlayer().getWorld().getEnvironment() == Environment.NETHER && event.getPlayer().getItemInHand() != null && event.getPlayer().getItemInHand().getType() == Material.EYE_OF_ENDER && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) )
+		{
+			Location target = KillerMinecraft.craftBukkitHelper().findNearestNetherFortress(event.getPlayer().getLocation());
+			if ( target == null )
+				event.getPlayer().sendMessage("No nether fortresses nearby");
+			else
+			{
+				KillerMinecraft.craftBukkitHelper().createFlyingEnderEye(event.getPlayer(), target);
+				event.getPlayer().getItemInHand().setAmount(event.getPlayer().getItemInHand().getAmount() - 1);				
+			}
+			
+			event.setCancelled(true);
+			return;
+		}
 	}
 }

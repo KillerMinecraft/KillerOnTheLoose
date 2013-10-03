@@ -1,6 +1,6 @@
-name: Mystery Killer
-main: com.ftwinston.Killer.MysteryKiller.Plugin
-depend: [Killer]
+name: Killer
+main: com.ftwinston.KillerMinecraft.Modules.Killer.Plugin
+depend: [Killer Minecraft]
 version: 1
 load: STARTUP
 description: A game mode for Killer Minecraft
