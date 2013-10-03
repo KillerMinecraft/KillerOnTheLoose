@@ -28,7 +28,14 @@ import org.bukkit.Material;
 public class Killer extends GameMode
 {
 	ToggleOption dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers;
-	ChoiceOption killerType;
+	ChoiceOption<KillerType> killerType;
+	
+	enum KillerType
+	{
+		MYSTERY_KILLER,
+		INVISIBLE_KILLER,
+		CRAZY_KILLER,
+	}
 	
 	static final Material[] winningItems = { Material.BLAZE_ROD, Material.GHAST_TEAR };
 
@@ -39,7 +46,7 @@ public class Killer extends GameMode
 		@Override
 		public String getName() { return "Survivors"; }
 		@Override
-		public boolean allowTeamChat() { return !killerType.getValue().equals("Mystery Killer"); }
+		public boolean allowTeamChat() { return killerType.getValue() != KillerType.MYSTERY_KILLER; }
 	};
 	TeamInfo killer = new TeamInfo() {
 		@Override
@@ -59,10 +66,10 @@ public class Killer extends GameMode
 		autoReallocateKillers = new ToggleOption("Allocate new killer if old ones die", true);
 		allowMultipleKillers = new ToggleOption("Assign multiple killers if lots of people play", false);
 		
-		killerType = new ChoiceOption("Killer type");
-		killerType.addChoice("Mystery Killer", Material.FLINT_AND_STEEL, "No special powers, but", "Killer's identity is", "kept secret");
-		killerType.addChoice("Invisible Killer", Material.GLASS, "Killer can't be seen,", "other players get infinity", "bows and warnings when", "the killer is nearby");
-		killerType.addChoice("Crazy Killer", Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
+		killerType = new ChoiceOption<KillerType>("Killer type");
+		killerType.addChoice("Mystery Killer", KillerType.MYSTERY_KILLER, Material.FLINT_AND_STEEL, "No special powers, but", "Killer's identity is", "kept secret");
+		killerType.addChoice("Invisible Killer", KillerType.INVISIBLE_KILLER, Material.GLASS, "Killer can't be seen,", "other players get infinity", "bows and warnings when", "the killer is nearby");
+		killerType.addChoice("Crazy Killer", KillerType.CRAZY_KILLER, Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
 		
 		return new Option[] { dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers, killerType };
 	}
