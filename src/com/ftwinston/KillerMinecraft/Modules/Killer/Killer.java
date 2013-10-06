@@ -11,6 +11,7 @@ import com.ftwinston.KillerMinecraft.Configuration.ChoiceOption;
 import com.ftwinston.KillerMinecraft.Configuration.TeamInfo;
 import com.ftwinston.KillerMinecraft.Configuration.ToggleOption;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
@@ -73,6 +74,16 @@ public class Killer extends GameMode
 		killerType.addChoice("Crazy Killer", KillerType.CRAZY_KILLER, Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
 		
 		return new Option[] { dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers, killerType };
+	}
+	
+	@Override
+	public org.bukkit.scoreboard.Scoreboard createScoreboard()
+	{
+		// in mystery killer, we don't want players to be able to distinguish the teams
+		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
+			return Bukkit.getScoreboardManager().getMainScoreboard();
+		
+		return super.createScoreboard();
 	}
 	
 	@Override
