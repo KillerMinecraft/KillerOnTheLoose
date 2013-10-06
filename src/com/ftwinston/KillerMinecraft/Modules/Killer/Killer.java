@@ -54,25 +54,10 @@ public class Killer extends GameMode
 		@Override
 		public boolean allowTeamChat() { return false; }
 	};
-	TeamInfo[] teams = new TeamInfo[] { survivors, killer };
 	
-	@Override
-	public TeamInfo[] getTeams() { return teams; }
-	
-	@Override
-	public void allocateTeams(List<Player> players)
+	public Killer()
 	{
-		// pick a killer immediately, if not on mystery killer.
-		if ( killerType.getValue() != KillerType.MYSTERY_KILLER )
-		{
-			int index = random.nextInt(players.size());
-			Player player = players.remove(index);
-			setTeam(player, killer);
-		}
-		
-		// put everyone (else) into the survivors
-		for ( Player player : players )
-			setTeam(player, survivors);	
+		setTeams(new TeamInfo[] { survivors, killer });
 	}
 	
 	@Override
@@ -88,6 +73,22 @@ public class Killer extends GameMode
 		killerType.addChoice("Crazy Killer", KillerType.CRAZY_KILLER, Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
 		
 		return new Option[] { dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers, killerType };
+	}
+	
+	@Override
+	public void allocateTeams(List<Player> players)
+	{
+		// pick a killer immediately, if not on mystery killer.
+		if ( killerType.getValue() != KillerType.MYSTERY_KILLER )
+		{
+			int index = random.nextInt(players.size());
+			Player player = players.remove(index);
+			setTeam(player, killer);
+		}
+		
+		// put everyone (else) into the survivors
+		for ( Player player : players )
+			setTeam(player, survivors);	
 	}
 		
 	@Override
@@ -197,7 +198,7 @@ public class Killer extends GameMode
 	}
 	
 	@Override
-	public boolean teamAllocationIsSecret() { return true; }
+	public boolean allowTeamSelection() { return false; }
 	
 	@Override
 	public boolean isLocationProtected(Location l, Player p)
