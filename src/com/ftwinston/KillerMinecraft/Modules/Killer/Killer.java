@@ -1,6 +1,8 @@
 package com.ftwinston.KillerMinecraft.Modules.Killer;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.ftwinston.KillerMinecraft.GameMode;
 import com.ftwinston.KillerMinecraft.Helper;
@@ -21,9 +23,16 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.potion.Potion;
+import org.bukkit.potion.PotionType;
 import org.bukkit.Material;
 
 public class Killer extends GameMode
@@ -41,7 +50,7 @@ public class Killer extends GameMode
 	static final Material[] winningItems = { Material.BLAZE_ROD, Material.GHAST_TEAR };
 
 	@Override
-	public int getMinPlayers() { return 3; }
+	public int getMinPlayers() { return killerType.getValue() == KillerType.MYSTERY_KILLER ? 3 : 2; }
 	
 	TeamInfo survivors = new TeamInfo() {
 		@Override
@@ -223,28 +232,41 @@ public class Killer extends GameMode
 	}
 	
 	@Override
+	
 	public boolean isAllowedToRespawn(Player player) { return getPlayers(new PlayerFilter().team(killer)).size() == 0; } // respawn if no killers allocated
 	
 	@Override
-	public boolean useDiscreetDeathMessages() { return true; }
+	public boolean useDiscreetDeathMessages() { return killerType.getValue() == KillerType.MYSTERY_KILLER; }
 	
 	@Override
 	public Location getSpawnLocation(Player player)
 	{
-		Location spawnPoint = Helper.randomizeLocation(getWorld(0).getSpawnLocation(), 0, 0, 0, 8, 0, 8);
+		Location spawnPoint;
+		if ( Helper.getTeam(getGame(), player) == killer )
+		{
+			// the killer starts a good distance away from the other players
+			spawnPoint = Helper.randomizeLocation(getWorld(0).getSpawnLocation(), 64, 0, 64, 96, 0, 96);
+		}
+		else
+			spawnPoint = Helper.randomizeLocation(getWorld(0).getSpawnLocation(), 0, 0, 0, 8, 0, 8);	
+
 		return Helper.getSafeSpawnLocationNear(spawnPoint);
 	}
 	
 	int allocationProcessID = -1;
-	
 	Location plinthLoc;
+	static final double maxKillerDetectionRangeSq = 50 * 50;
+	Map<String, Boolean> inRangeLastTime = new LinkedHashMap<String, Boolean>();
+	int restoreMessageProcessID = -1, updateRangeMessageProcessID = -1;
 	
 	@Override
 	public void gameStarted()
 	{
 		plinthLoc = Helper.generatePlinth(getWorld(0));
+		restoreMessageProcessID = updateRangeMessageProcessID = -1;
+		inRangeLastTime.clear();
 		
-		if ( dontAssignKillerUntilSecondDay.isEnabled() )
+		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 		{// check based on the time of day
 			allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
 				long lastRun = 0;
@@ -254,14 +276,14 @@ public class Killer extends GameMode
 					
 					if ( time < lastRun ) // time of day has gone backwards: must be a new day! Allocate the killers
 					{
-						allocateKillers();
+						allocateMysteryKiller();
 						getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
 						
 						if ( autoReallocateKillers.isEnabled() )
 							allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
 								public void run()
 								{
-									allocateKillers();									
+									allocateMysteryKiller();									
 								}
 							}, 1800L, 1800L); // check every 90 seconds
 						else
@@ -272,26 +294,69 @@ public class Killer extends GameMode
 				}
 			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)
 		}
-		else // immediate allocation (team already been assigned)
+		
+		List<Player> killerPlayers = getOnlinePlayers(new PlayerFilter().team(killer));
+		List<Player> survivorPlayers = getOnlinePlayers(new PlayerFilter().team(survivors));
+		float ratio = survivorPlayers.size() / (float)killerPlayers.size();
+		
+		for ( Player player : killerPlayers )
+			prepareKiller(player, killerPlayers.size(), ratio);
+		
+		if ( killerType.getValue() != KillerType.MYSTERY_KILLER )
 		{
-			List<Player> killers = getOnlinePlayers(new PlayerFilter().team(killer));
-			float ratio = ((float)getOnlinePlayers(new PlayerFilter().team(survivors)).size())/killers.size();
-			for ( Player player : killers )
-				prepareKiller(player, killers.size(), ratio);
+			if ( killerPlayers.size() == 0 )
+				return;
 			
-			if ( autoReallocateKillers.isEnabled() )
-				allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
-						public void run()
-						{
-							allocateKillers();									
-						}
-					}, 1800L, 1800L); // check every 90 seconds
-			else
-				allocationProcessID = -1;
+			for ( Player player : survivorPlayers )
+				prepareSurvivor(player, killerPlayers, ratio);
 		}
+		
+		if ( killerType.getValue() == KillerType.INVISIBLE_KILLER )
+			updateRangeMessageProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
+				public void run()
+				{
+					for ( Player looker : getOnlinePlayers(new PlayerFilter().alive()) )
+					{
+						if ( looker == null || !looker.isOnline() )
+							continue;
+						
+						double bestRangeSq = maxKillerDetectionRangeSq + 1;
+						TeamInfo lookerTeam = Helper.getTeam(getGame(), looker);
+						TeamInfo targetTeam = lookerTeam == killer ? survivors : killer;
+						
+						for ( Player target : getOnlinePlayers(new PlayerFilter().alive().team(targetTeam)) )
+						{
+							if ( target.getWorld() != looker.getWorld() )
+								continue;
+							
+							double rangeSq = target.getLocation().distanceSquared(looker.getLocation());
+							if ( rangeSq < bestRangeSq )
+								bestRangeSq = rangeSq;
+						}
+						
+						if ( bestRangeSq < maxKillerDetectionRangeSq )
+						{
+							int bestRange = (int)(Math.sqrt(bestRangeSq) + 0.5); // round to nearest integer
+							if ( lookerTeam == killer )
+								looker.sendMessage("Range to nearest player: " + bestRange + " metres");
+							else
+								looker.sendMessage(ChatColor.RED + "Killer detected! Range: " + bestRange + " metres");
+							inRangeLastTime.put(looker.getName(), true);
+						}
+						else if ( inRangeLastTime.containsKey(looker.getName()) && inRangeLastTime.get(looker.getName()) )
+						{
+							if ( lookerTeam == killer )
+								looker.sendMessage("All players are out of range");
+							else
+								looker.sendMessage("No killer detected");
+							inRangeLastTime.put(looker.getName(), false);
+						}
+					}
+				}
+			}, 50, 200);
 	}
 	
-	private void allocateKillers()
+	private void allocateMysteryKiller()
 	{
 		int numAlive = getOnlinePlayers(new PlayerFilter().alive()).size();
 		int numKillers = getOnlinePlayers(new PlayerFilter().team(killer)).size();
@@ -340,20 +405,108 @@ public class Killer extends GameMode
 			player.sendMessage(message);
 	}
 	
-	private void prepareKiller(Player player, int numKillersAllocated, float numFriendliesPerKiller)
+	private void prepareSurvivor(Player player, List<Player> killers, float numSurvivorsPerKiller)
 	{
-		// this ougth to say "a" if multiple killers are/have been present in the game
+		PlayerInventory inv = player.getInventory();
+		
+		switch ( killerType.getValue() )
+		{
+		case INVISIBLE_KILLER:
+			ItemStack stack = new ItemStack(Material.BOW, 1);
+			stack.addEnchantment(Enchantment.ARROW_INFINITE, 1);
+			inv.addItem(stack);
+			inv.addItem(new ItemStack(Material.ARROW, 1)); // you need 1 arrow for the infinity bow
+			
+			// give some splash potions of damage
+			Potion pot = new Potion(PotionType.INSTANT_DAMAGE);
+			pot.setLevel(1);
+			pot.splash();
+			
+			stack = pot.toItemStack(Math.max(2, (int)(32f / numSurvivorsPerKiller)));
+			inv.addItem(stack);
+			break;
+			
+		case CRAZY_KILLER:
+			inv.addItem(new ItemStack(Material.IRON_SWORD, 1));
+			break;
+		
+		case MYSTERY_KILLER:
+			return;
+		}
+		
+		announceKillers(player, killers);
+	}
+	
+	private void announceKillers(Player player, List<Player> killers)
+	{
+		StringBuilder sb = new StringBuilder();
+		sb.append(ChatColor.RED);
+		
+		if ( killers.size() == 1 )
+		{
+			sb.append(killers.get(0).getName());
+			sb.append(" is the killer!");
+		}
+		else if ( killers.size() == 0 )
+			sb.append("There are no killers for some reason!");
+		else
+		{
+			for ( int i=0; i<killers.size()-1; i++ )
+			{
+				if ( i > 0 )
+					sb.append(", ");
+				sb.append(killers.get(i).getName());
+			}
+			sb.append(" and ");
+			sb.append(killers.get(killers.size()-1).getName());
+			sb.append(" are the killers!");
+		}
+		
+		sb.append("\n");
+		sb.append(ChatColor.RESET);
+		sb.append("Use the /team command to chat without them seeing your messages");
+		
+		player.sendMessage(sb.toString());
+	}
+	
+	private void prepareKiller(Player player, int numKillersAllocated, float numSurvivorsPerKiller)
+	{
+		// this ought to say "a" if multiple killers are/have been present in the game
 		String message = ChatColor.RED.toString();
 		if ( numKillersAllocated == 1 )
 			message += "You are the killer!\n" + ChatColor.RESET;
 		else
-			message += "You are a killer!" + ChatColor.RESET + " You are one of " + numKillersAllocated + " that have just been allocated.\n";
+			message += "You are a killer!" + ChatColor.RESET + " You are one of " + numKillersAllocated + " killers.\n";
 		
-		message += "Try to kill the other players without them working out who's after them.";
+		
+		switch ( killerType.getValue() )
+		{
+		case MYSTERY_KILLER:
+			message += "Try to kill the other players without them working out who's after them.";
+			giveMysteryKillerItems(player.getInventory(), numSurvivorsPerKiller);
+			break;
+		case INVISIBLE_KILLER:
+			message += "You are invisible.";
+			giveInvisibleKillerItems(player.getInventory(), numSurvivorsPerKiller);
+			setPlayerVisibility(player, false);
+			break;
+		case CRAZY_KILLER:
+			message += "Every dirt block you pick up will turn into TNT...";
+			giveCrazyKillerItems(player.getInventory(), numSurvivorsPerKiller);
+			break;
+		}
+		
 		player.sendMessage(message);
-		
-		PlayerInventory inv = player.getInventory();
-		
+	}
+
+	private void giveInvisibleKillerItems(PlayerInventory inv, float numSurvivorsPerKiller)
+	{
+		inv.addItem(new ItemStack(Material.COMPASS, 1));
+		inv.addItem(new ItemStack(Material.COOKED_BEEF, 10));
+	}
+
+	private void giveMysteryKillerItems(PlayerInventory inv, float numFriendliesPerKiller)
+	{
 		if ( numFriendliesPerKiller >= 2 )
 			inv.addItem(new ItemStack(Material.STONE, 6));
 		else
@@ -478,8 +631,25 @@ public class Killer extends GameMode
 			stack.addEnchantment(Enchantment.DIG_SPEED, 3);
 			inv.addItem(stack);
 		}
-		else
-			return;	
+
+		return;
+	}
+	
+	private void giveCrazyKillerItems(PlayerInventory inv, float numFriendliesPerKiller)
+	{
+		inv.addItem(new ItemStack(Material.DIAMOND_PICKAXE, 1));
+		inv.addItem(new ItemStack(Material.COMPASS, 1));
+		inv.addItem(new ItemStack(Material.COOKED_BEEF, 10));
+		
+		inv.addItem(new ItemStack(Material.REDSTONE, 64));
+		inv.addItem(new ItemStack(Material.STONE, 64));
+		
+		inv.addItem(new ItemStack(Material.STRING, 32));
+		inv.addItem(new ItemStack(Material.DIRT, 16));
+		
+		// give them one swiftness potion for each player on the other team
+		// 8290 = swiftness 2 extended, 8226 = swiftness 2, 8194 = swiftness, 8258 = swiftness extended
+		inv.addItem(new ItemStack(Material.POTION, (int)numFriendliesPerKiller, (short)8226));
 	}
 	
 	@Override
@@ -490,54 +660,116 @@ public class Killer extends GameMode
 			getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
 			allocationProcessID = -1;
 		}
+
+		// stop our scheduled processes
+		if ( updateRangeMessageProcessID != -1 )
+		{
+			getPlugin().getServer().getScheduler().cancelTask(updateRangeMessageProcessID);
+			updateRangeMessageProcessID = -1;
+		}
 		
-		// announce who the killer(s) was/were
-		List<OfflinePlayer> killers = getPlayers(new PlayerFilter().team(killer));
-		String message = killers.size() == 1 ? "The killer was: " : "The killers were:\n";
+		if ( restoreMessageProcessID != -1 )
+		{
+			getPlugin().getServer().getScheduler().cancelTask(restoreMessageProcessID);
+			restoreMessageProcessID = -1;
+		}
 		
-		for ( OfflinePlayer killer : killers )
-			message += killer.getName() + "\n";
-				
-		broadcastMessage(message);
+		inRangeLastTime.clear();
+		
+		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
+		{
+			// announce who the killer(s) was/were
+			List<OfflinePlayer> killers = getPlayers(new PlayerFilter().team(killer));
+			String message = killers.size() == 1 ? "The killer was: " : "The killers were:\n";
+			
+			for ( OfflinePlayer killer : killers )
+				message += killer.getName() + "\n";
+					
+			broadcastMessage(message);
+		}
 	}
 	
 	@Override
-	public void playerJoined(Player player, boolean isNewPlayer)
+	public void playerJoinedLate(Player player, boolean isNewPlayer)
 	{
 		if ( isNewPlayer )
+		{
 			setTeam(player,  survivors);
+			
+			float numSurvivors = getOnlinePlayers(new PlayerFilter().team(survivors)).size();
+			List<Player> killers = getOnlinePlayers(new PlayerFilter().team(killer));
+			
+			prepareSurvivor(player, killers, numSurvivors/killers.size());
+		}
 		else if ( Helper.getTeam(getGame(), player) == killer ) // inform them that they're still a killer
 			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(killer)).size() > 1 ? "a" : "the" ) + " killer!"); 
 		else
 			player.sendMessage("Welcome back. You are not the killer, and you're still alive.");
+		
+		
+		// hide all killers from this player!
+		for ( Player other : getOnlinePlayers(new PlayerFilter().alive().team(killer)) )
+			if ( other != player )
+				hidePlayer(other, player);
 	}
 	
 	@Override
 	public void playerQuit(OfflinePlayer player)
 	{
-		if ( hasGameFinished() || getOnlinePlayers(new PlayerFilter().team(killer)).size() == 0 )
-			return;
-		
-		int numFriendlies = getOnlinePlayers(new PlayerFilter().alive().team(survivors)).size();
-		int numKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
-		
-		if ( numFriendlies != 0 )
+		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 		{
-			// if only one person left (and they're not the killer), tell people they can /vote if they want to start a new game
-			if ( numFriendlies == 1 && numKillers == 0 )
-				broadcastMessage("There's only one player left, and they're not the killer.\nIf you want to draw this game and start another, start a vote by typing " + ChatColor.YELLOW + "/vote");
-			return;
-		}
-		
-		if ( numKillers > 0 )
-		{
-			broadcastMessage("All the friendly players died - the killer wins!");
-			finishGame(); // killers win
+			if ( hasGameFinished() || getOnlinePlayers(new PlayerFilter().team(killer)).size() == 0 )
+				return;
+			
+			int numFriendlies = getOnlinePlayers(new PlayerFilter().alive().team(survivors)).size();
+			int numKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
+			
+			if ( numFriendlies != 0 )
+			{
+				// if only one person left (and they're not the killer), tell people they can /vote if they want to start a new game
+				if ( numFriendlies == 1 && numKillers == 0 )
+					broadcastMessage("There's only one player left, and they're not the killer.\nIf you want to draw this game and start another, start a vote by typing " + ChatColor.YELLOW + "/vote");
+				return;
+			}
+			
+			if ( numKillers > 0 )
+			{
+				broadcastMessage("All the friendly players died - the killer wins!");
+				finishGame(); // killers win
+			}
+			else
+			{
+				broadcastMessage("Everybody died - nobody wins!");
+				finishGame(); // nobody wins
+			}
 		}
 		else
 		{
-			broadcastMessage("Everybody died - nobody wins!");
-			finishGame(); // nobody wins
+			if ( hasGameFinished() )
+				return;
+			
+			TeamInfo team = Helper.getTeam(getGame(), player);
+			int numSurvivorsOnTeam = getOnlinePlayers(new PlayerFilter().alive().team(team)).size();
+			
+			if ( numSurvivorsOnTeam > 0 )
+				return; // this players still has living allies, so this doesn't end the game
+			
+			int numSurvivorsTotal = getOnlinePlayers(new PlayerFilter().alive()).size();
+			if ( numSurvivorsTotal == 0 )
+			{
+				broadcastMessage("Everybody died - nobody wins!");
+				finishGame(); // draw, nobody wins
+			}
+			else if ( team == killer )
+			{
+				broadcastMessage("The killer died - the friendly players win!");
+				finishGame(); // killer died, friendlies win
+			}
+			else
+			{
+				broadcastMessage("All the friendly players died - the killer wins!");
+				finishGame(); // friendlies died, killer wins
+			}
 		}
 	}
 	
@@ -584,4 +816,182 @@ public class Killer extends GameMode
 			return;
 		}
 	}
+	
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void entityDamaged(EntityDamageEvent event)
+	{
+		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER || !(event.getEntity() instanceof Player) )
+			return;
+		
+		Player victim = (Player)event.getEntity();
+		if ( victim == null || Helper.getTeam(getGame(), victim) != killer )
+			return;
+		
+		if ( restoreMessageProcessID != -1 )
+		{// the "cooldown" must be reset
+			getPlugin().getServer().getScheduler().cancelTask(restoreMessageProcessID);
+		}
+		else
+		{// make them visible for a period of time
+			setPlayerVisibility(victim, true);
+			victim.sendMessage(ChatColor.RED + "You can be seen!");
+		}
+		
+		restoreMessageProcessID = getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new RestoreInvisibility(victim.getName()), 100L); // 5 seconds
+	}
+	
+    class RestoreInvisibility implements Runnable
+    {
+    	String name;
+    	public RestoreInvisibility(String playerName)
+		{
+			name = playerName;
+		}
+    	
+    	public void run()
+    	{
+			Player player = getPlugin().getServer().getPlayerExact(name);
+			if ( player == null || !player.isOnline() && !Helper.isAlive(getGame(), player) )
+				return; // only if the player is still in the game
+			
+			ItemStack heldItem = player.getItemInHand();
+			if ( heldItem != null && isWeapon(heldItem.getType()) )
+			{
+				player.sendMessage("You will be invisible when you put your weapon away");
+			}
+			else
+			{
+				setPlayerVisibility(player, false);
+				player.sendMessage("You are now invisible again");
+			}
+			restoreMessageProcessID = -1;
+    	}
+    }
+    
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void playerItemSwitch(PlayerItemHeldEvent event)
+    {
+		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
+			return;
+
+		if ( Helper.getTeam(getGame(), event.getPlayer()) != killer )
+			return;
+		
+		Player player = event.getPlayer();
+		ItemStack prevItem = player.getInventory().getItem(event.getPreviousSlot());
+		ItemStack newItem = player.getInventory().getItem(event.getNewSlot());
+		
+		boolean prevIsWeapon = prevItem != null && isWeapon(prevItem.getType());
+		boolean newIsWeapon = newItem != null && isWeapon(newItem.getType());
+		
+		if ( prevIsWeapon == newIsWeapon || restoreMessageProcessID != -1 ) // if they're already visible because of damage, change nothing
+			return;
+		
+		if ( newIsWeapon )
+		{
+			setPlayerVisibility(player, true);
+			player.sendMessage(ChatColor.RED + "You can be seen!");
+		}
+		else if ( !newIsWeapon )
+		{
+			setPlayerVisibility(player, false);
+			player.sendMessage("You are now invisible again");	
+		}
+    }
+
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void playerDroppedItem(PlayerDropItemEvent event)
+	{
+		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
+			return;
+		
+		Player player = event.getPlayer();
+		
+		if ( Helper.getTeam(getGame(), player) != killer )
+			return;
+		
+		// if they currently have nothing in their hand, assume they just dropped this weapon
+		if ( player.getItemInHand() != null )
+			return;
+		
+		if ( restoreMessageProcessID == -1 && isWeapon(player.getItemInHand().getType()) )
+		{
+			setPlayerVisibility(player, false);
+			player.sendMessage("You are now invisible again");	
+		}
+    }
+
+	@EventHandler(ignoreCancelled = true)
+	public void playerPickedUpItem(PlayerPickupItemEvent event)
+	{
+		if ( killerType.getValue() == KillerType.CRAZY_KILLER && event.getItem().getItemStack().getType() == Material.DIRT && Helper.getTeam(getGame(), event.getPlayer()) == killer )
+			event.getItem().getItemStack().setType(Material.TNT);
+		
+		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER
+				|| !isWeapon(event.getItem().getItemStack().getType())
+				|| Helper.getTeam(getGame(), event.getPlayer()) != killer )
+			return;
+		
+		final Player player = event.getPlayer();
+		
+		// wait a bit, for the item to actually get INTO their inventory. Then make them visible, if its in their hand
+		getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
+			public void run()
+			{
+				ItemStack item = player.getItemInHand(); 
+				if ( restoreMessageProcessID == -1 && item != null && isWeapon(item.getType()) )
+				{
+					setPlayerVisibility(player, true);
+					player.sendMessage(ChatColor.RED + "You can be seen!");
+				}
+			}
+		}, 10); // hopefully long enough for pickup
+	}
+
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void playerInventoryClick(InventoryClickEvent event)
+	{
+		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
+			return;
+			
+		final Player player = (Player)event.getWhoClicked();
+    	if ( player == null )
+    		return;
+	
+		if ( Helper.getTeam(getGame(), player) != killer )
+			return;
+		
+		// rather than work out all the click crap, let's just see if it changes
+		ItemStack item = player.getItemInHand();
+		final boolean weaponBefore = item != null && isWeapon(item.getType());
+		
+		getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
+			public void run()
+			{
+				ItemStack item = player.getItemInHand(); 
+				if ( item == null )
+					return;
+				
+				boolean weaponAfter = isWeapon(item.getType());
+				if ( weaponBefore == weaponAfter || restoreMessageProcessID != -1)
+					return;
+				
+				if ( weaponAfter )
+				{
+					setPlayerVisibility(player, true);
+					player.sendMessage(ChatColor.RED + "You can be seen!");
+				}
+				else if ( !weaponAfter )
+				{
+					setPlayerVisibility(player, false);
+					player.sendMessage("You are now invisible again");	
+				}
+			}
+		}, 1);
+	}
+	
+    private boolean isWeapon(Material mat)
+    {
+    	return mat == Material.BOW || mat == Material.IRON_SWORD || mat == Material.STONE_SWORD || mat == Material.DIAMOND_SWORD || mat == Material.WOOD_SWORD || mat == Material.GOLD_SWORD;
+    }
 }
