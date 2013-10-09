@@ -25,6 +25,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
@@ -37,7 +38,7 @@ import org.bukkit.Material;
 
 public class Killer extends GameMode
 {
-	ToggleOption dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers;
+	ToggleOption ghastTearVictory, allowCraftingMonsters;
 	ChoiceOption<KillerType> killerType;
 	
 	enum KillerType
@@ -47,7 +48,7 @@ public class Killer extends GameMode
 		CRAZY_KILLER,
 	}
 	
-	static final Material[] winningItems = { Material.BLAZE_ROD, Material.GHAST_TEAR };
+	Material[] winningItems;
 
 	@Override
 	public int getMinPlayers() { return killerType.getValue() == KillerType.MYSTERY_KILLER ? 3 : 2; }
@@ -73,16 +74,15 @@ public class Killer extends GameMode
 	@Override
 	public Option[] setupOptions()
 	{
-		dontAssignKillerUntilSecondDay = new ToggleOption("Don't assign killer until the second day", true);
-		autoReallocateKillers = new ToggleOption("Allocate new killer if old ones die", true);
-		allowMultipleKillers = new ToggleOption("Assign multiple killers if lots of people play", false);
-		
 		killerType = new ChoiceOption<KillerType>("Killer type");
 		killerType.addChoice("Mystery Killer", KillerType.MYSTERY_KILLER, Material.FLINT_AND_STEEL, "No special powers, but", "Killer's identity is", "kept secret");
 		killerType.addChoice("Invisible Killer", KillerType.INVISIBLE_KILLER, Material.GLASS, "Killer can't be seen,", "other players get infinity", "bows and warnings when", "the killer is nearby");
 		killerType.addChoice("Crazy Killer", KillerType.CRAZY_KILLER, Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
 		
-		return new Option[] { dontAssignKillerUntilSecondDay, autoReallocateKillers, allowMultipleKillers, killerType };
+		ghastTearVictory = new ToggleOption("Ghast tear victory", true, "When enabled, friendly players can", "win by returning a ghast tear or", "a blaze rod. When disabled, they", "can only win with a blaze rod.");
+		allowCraftingMonsters = new ToggleOption("Allow crafting monsters", true, "Adds recipes for crafting monster", "eggs by combining a common", "monster drop with an iron ingot.");
+		
+		return new Option[] { killerType, ghastTearVictory, allowCraftingMonsters };
 	}
 	
 	@Override
@@ -114,55 +114,35 @@ public class Killer extends GameMode
 	@Override
 	public String getHelpMessage(int num, TeamInfo team)
 	{
+		switch ( killerType.getValue() )
+		{
+		case MYSTERY_KILLER:
+			return getHelpMessageMysteryKiler(num, team);
+		case INVISIBLE_KILLER:
+			return getHelpMessageInvisibleKiler(num, team);
+		case CRAZY_KILLER:
+			return getHelpMessageCrazyKiler(num, team);
+		default:
+			return null;
+		}
+	}
+	
+	public String getHelpMessageMysteryKiler(int num, TeamInfo team)
+	{
 		switch ( num )
 		{
 			case 0:
 				if ( team == killer )
-				{
-					if ( allowMultipleKillers.isEnabled() )
-						return "You have been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will have been chosen.\nNo one else has been told who was chosen.";
-					else
-						return "You have been chosen to try and kill everyone else.\nNo one else has been told who was chosen.";
-				}
+					return "You have been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will have been chosen.\nNo one else has been told who was chosen.";
 				else if ( getPlayers(new PlayerFilter().team(killer)).size() > 0 )
-				{
-					if ( allowMultipleKillers.isEnabled() )
-						return "(At least) one player has been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
-					else
-						return "One player has been chosen to try and kill everyone else. No one else has been told who it is.";
-				}
+					return "(At least) one player has been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
 				else
-				{
-					if ( dontAssignKillerUntilSecondDay.isEnabled() )
-					{
-						if ( allowMultipleKillers.isEnabled() )
-							return "At the start of the next game day, (at least) one player will be chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
-						else
-							return "At the start of the next game day, one player will be chosen to try and kill everyone else.\nNo one else will be told who it is.";
-					}
-					else
-					{
-						if ( allowMultipleKillers.isEnabled() )
-							return "(At least) one player will shortly be chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
-						else
-							return "One player will shortly be chosen to try and kill everyone else.\nNo one else will be told who it is.";
-					}
-				}
+					return "At the start of the next game day, a one player will be chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
 			case 1:
 				if ( team == killer )
-				{
-					if ( allowMultipleKillers.isEnabled() )
-						return "As a killer, you win if all the friendly players die. You won't be told who the other killers are.";
-					else
-						return "As the killer, you win if everyone else dies.";
-				}
+					return "As a killer, you win if all the friendly players die. You won't be told who the other killers are.";
 				else
-				{
-					if ( allowMultipleKillers.isEnabled() )
-						return "The killers win if everyone else dies... so watch your back!";
-					else
-						return "The killer wins if everyone else dies... so watch your back!";
-				}
+					return "The killer(s) win if everyone else dies... so watch your back!";
 			case 2:
 				String message = "To win, the other players must bring a ";
 				
@@ -179,31 +159,16 @@ public class Killer extends GameMode
 				message += " to the plinth near the spawn.";
 				return message;
 			case 3:
-				if ( allowMultipleKillers.isEnabled() )
-				{
-					if ( autoReallocateKillers.isEnabled() )
-						return "The other players will not automatically win when all the killers are dead, and additional killers may be assigned once to replace dead ones.";
-					else
-						return "The other players will not automatically win when all the killers are dead.";
-				}
-				else
-				{
-					if ( autoReallocateKillers.isEnabled() )
-						return "The other players will not automatically win when the killer dies, and another killer may be assigned once the first one is dead.";
-					else
-						return "The other players will not automatically win when the killer dies.";
-				}
-			
+				return "The other players will not automatically win when all the killers are dead, and additional killers may be assigned to replace dead ones.";
+
 			case 4:
 				return "Death messages won't say how someone died, or who killed them.";
 			
 			case 5:
 				if ( team == killer )
 					return "If you make a compass, it will point at the nearest player. This won't work for other players.";
-				else if ( allowMultipleKillers.isEnabled() )
-					return "If one of the killers make a compass, it will point at the nearest player. This won't work for other players.";
 				else
-					return "If the killer makes a compass, it will point at the nearest player. This won't work for other players.";
+					return "If a killer makes a compass, it will point at the nearest player. This won't work for other players.";
 
 			case 6:
 				return "Several monster eggs can be crafted by combining one of their dropped items with an iron ingot.";
@@ -212,6 +177,97 @@ public class Killer extends GameMode
 			case 8:
 				return "Eyes of ender will help you find nether fortresses (to get blaze rods).\nThey can be crafted from an ender pearl and a spider eye.";
 				
+			default:
+				return null;
+		}
+	}
+	
+	public String getHelpMessageInvisibleKiler(int num, TeamInfo team)
+	{
+		switch ( num )
+		{
+			case 0:
+				if ( team == killer )
+					return "You have been chosen to be the killer, and must kill everyone else.\nYou are invisible, but they know who you are.";
+				else
+					return "A player has been chosen to be the killer, and must kill everyone else.\nThey are invisible!";
+			case 1:
+				if ( team == killer )
+					return "You will briefly become visible when damaged.\nYou cannot be hit while invisible, except by ranged weapons.";
+				else
+					return "The killer will briefly become visible when damaged.\nThey cannot be hit while invisible, except by ranged weapons.";
+			case 2:
+				if ( team == killer )
+					return "You will be decloaked when wielding a sword or bow.\nYour compass points at the nearest player.\nThe other players are told how far away you are.";
+				else
+					return "The killer will be decloaked when wielding a sword or bow.\nThe killer's compass points at the nearest player.\nThe other players are told how far away the killer is.";
+			case 3:
+				return "The other players get infinity bows and splash damage potions.";
+			case 4:
+				String message = "To win, the other players must kill the killer, or bring a ";
+			
+				message += Helper.tidyItemName(winningItems[0]);
+				
+				if ( winningItems.length > 1 )
+				{
+					for ( int i=1; i<winningItems.length-1; i++)
+						message += ", a " + Helper.tidyItemName(winningItems[i]);
+					
+					message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
+				}
+				
+				message += " to the plinth near the spawn.";
+				return message;
+			
+			default:
+				return null;
+		}
+	}
+	
+	public String getHelpMessageCrazyKiler(int num, TeamInfo team)
+	{
+		switch ( num )
+		{
+			case 0:
+				if ( team == killer )
+					return "You have been chosen to be the killer, and must kill everyone else. They know who you are.";
+				else
+					return "A player has been chosen to be the killer, and must kill everyone else.";
+			case 1:
+				if ( team == killer )
+					return "Every dirt block you pick up will turn into TNT, so have fun with that.";
+				else
+					return "Every dirt block the killer picks up will turn into TNT, so beware.";
+			case 2:
+				if ( team == killer )
+					return "The other players each start with a sword, so avoid a direct fight.";
+				else
+					return "The killer doesn't start with a sword, but all the other players do.";
+			case 3:
+				if ( team == killer )
+					return "Your compass will point at the nearest player.";
+				else
+					return "The killer starts with a compass, which points at the nearest player.";
+			case 4:
+				String message = "The other players win if the killer dies, or if they bring a ";			
+				message += Helper.tidyItemName(winningItems[0]);
+				
+				if ( winningItems.length > 1 )
+				{
+					for ( int i=1; i<winningItems.length-1; i++)
+						message += ", a " + Helper.tidyItemName(winningItems[i]);
+					
+					message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
+				}
+				
+				message += " to the plinth near the spawn.";
+				return message;
+			case 5:
+				if ( team == killer )
+					return "You can make buttons and pressure plates with the stone you started with.\nTry to avoid blowing yourself up!";
+				else
+					return "The killer starts with enough stone and redstone to make plenty buttons, wires and pressure plates.";
+
 			default:
 				return null;
 		}
@@ -262,6 +318,11 @@ public class Killer extends GameMode
 	@Override
 	public void gameStarted()
 	{
+		if ( ghastTearVictory.isEnabled() )
+			winningItems = new Material[] { Material.BLAZE_ROD, Material.GHAST_TEAR };
+		else
+			winningItems = new Material[] { Material.BLAZE_ROD };
+		
 		plinthLoc = Helper.generatePlinth(getWorld(0));
 		restoreMessageProcessID = updateRangeMessageProcessID = -1;
 		inRangeLastTime.clear();
@@ -279,15 +340,12 @@ public class Killer extends GameMode
 						allocateMysteryKiller();
 						getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
 						
-						if ( autoReallocateKillers.isEnabled() )
-							allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
-								public void run()
-								{
-									allocateMysteryKiller();									
-								}
-							}, 1800L, 1800L); // check every 90 seconds
-						else
-							allocationProcessID = -1;
+						allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
+							public void run()
+							{
+								allocateMysteryKiller();									
+							}
+						}, 1800L, 1800L); // check every 90 seconds
 					}
 					
 					lastRun = time;
@@ -359,25 +417,11 @@ public class Killer extends GameMode
 	private void allocateMysteryKiller()
 	{
 		int numAlive = getOnlinePlayers(new PlayerFilter().alive()).size();
-		int numKillers = getOnlinePlayers(new PlayerFilter().team(killer)).size();
 		int numAliveKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
 		
-		int numToAdd;
-	
-		// if any killers have already been assigned, and we're not meant to reallocate, don't add any more
-		if ( !autoReallocateKillers.isEnabled() && numKillers > 0 )
-			numToAdd = 0;
-		
-		// if we don't allow multiple killers, only ever add 0 or 1
-		else if ( !allowMultipleKillers.isEnabled() )
-			numToAdd = numAliveKillers > 0 ? 0 : 1;
-
 		// 1-5 players should have 1 killer. 6-11 should have 2. 12-17 should have 3. 18-23 should have 4. 
-		else
-		{
-			int targetNumKillers = numAlive / 6 + 1;
-			numToAdd = targetNumKillers - numAliveKillers;
-		}
+		int targetNumKillers = numAlive / 6 + 1;
+		int numToAdd = targetNumKillers - numAliveKillers;
 		
 		if ( numToAdd <= 0 )
 			return;
@@ -994,4 +1038,14 @@ public class Killer extends GameMode
     {
     	return mat == Material.BOW || mat == Material.IRON_SWORD || mat == Material.STONE_SWORD || mat == Material.DIAMOND_SWORD || mat == Material.WOOD_SWORD || mat == Material.GOLD_SWORD;
     }
+    
+    @EventHandler(priority = EventPriority.HIGH)
+	public void onEvent(PrepareItemCraftEvent event)
+	{
+    	if ( allowCraftingMonsters.isEnabled() )
+    		return;
+    	
+    	if ( event.getRecipe().getResult().getType() == Material.MONSTER_EGG )
+    		event.getInventory().setResult(null);
+	}
 }
