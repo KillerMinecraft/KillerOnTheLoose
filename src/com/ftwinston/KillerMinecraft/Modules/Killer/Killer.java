@@ -20,10 +20,12 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.World.Environment;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -1040,7 +1042,7 @@ public class Killer extends GameMode
     }
     
     @EventHandler(priority = EventPriority.HIGH)
-	public void onEvent(PrepareItemCraftEvent event)
+	public void onPrepareCraft(PrepareItemCraftEvent event)
 	{
     	if ( allowCraftingMonsters.isEnabled() )
     		return;
@@ -1048,4 +1050,26 @@ public class Killer extends GameMode
     	if ( event.getRecipe().getResult().getType() == Material.MONSTER_EGG )
     		event.getInventory().setResult(null);
 	}
+    
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onShootBow(EntityShootBowEvent event)
+    {
+    	if ( killerType.getValue() != KillerType.CRAZY_KILLER || !(event.getEntity() instanceof Player) )
+    		return;
+    	
+    	Player player = (Player)event.getEntity();
+    	if ( Helper.getTeam(getGame(), player) != killer )
+    		return;
+    	
+    	if ( !player.getInventory().contains(Material.TNT) )
+    		return;
+    	
+    	player.getInventory().removeItem(new ItemStack(Material.TNT, 1));
+    	
+    	TNTPrimed tnt = (TNTPrimed)player.getWorld().spawn(player.getLocation().add(0, 1.62, 0), TNTPrimed.class);
+    	tnt.setVelocity((event.getProjectile().getVelocity()));
+    	tnt.setFuseTicks(65);
+    	
+    	event.setProjectile(tnt);
+    }
 }
