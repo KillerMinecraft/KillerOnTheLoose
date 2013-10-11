@@ -135,11 +135,11 @@ public class Killer extends GameMode
 		{
 			case 0:
 				if ( team == killer )
-					return "You have been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will have been chosen.\nNo one else has been told who was chosen.";
+					return "You have been chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will have been chosen.\nNo one else has been told who was chosen.";
 				else if ( getPlayers(new PlayerFilter().team(killer)).size() > 0 )
-					return "(At least) one player has been chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
+					return "(At least) one player has been chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
 				else
-					return "At the start of the next game day, a one player will be chosen to try and kill everyone else.\nIf there are more than 5 players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
+					return "At the start of the next game day, a one player will be chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
 			case 1:
 				if ( team == killer )
 					return "As a killer, you win if all the friendly players die. You won't be told who the other killers are.";
@@ -335,7 +335,7 @@ public class Killer extends GameMode
 				long lastRun = 0;
 				public void run()
 				{
-					long time = getPlugin().getServer().getWorlds().get(0).getTime();
+					long time = getWorld(0).getTime();
 					
 					if ( time < lastRun ) // time of day has gone backwards: must be a new day! Allocate the killers
 					{
@@ -352,7 +352,7 @@ public class Killer extends GameMode
 					
 					lastRun = time;
 				}
-			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)
+			}, 1800L, 100L); // initial wait: 90s, then check every 5s (still won't try to assign unless it detects a new day starting)
 		}
 		
 		List<Player> killerPlayers = getOnlinePlayers(new PlayerFilter().team(killer));
@@ -420,6 +420,9 @@ public class Killer extends GameMode
 	{
 		int numAlive = getOnlinePlayers(new PlayerFilter().alive()).size();
 		int numAliveKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
+		
+		if ( numAlive == 0 )
+			return;
 		
 		// 1-5 players should have 1 killer. 6-11 should have 2. 12-17 should have 3. 18-23 should have 4. 
 		int targetNumKillers = numAlive / 6 + 1;
@@ -1065,9 +1068,8 @@ public class Killer extends GameMode
     		return;
     	
     	player.getInventory().removeItem(new ItemStack(Material.TNT, 1));
-    	
     	TNTPrimed tnt = (TNTPrimed)player.getWorld().spawn(player.getLocation().add(0, 1.62, 0), TNTPrimed.class);
-    	tnt.setVelocity((event.getProjectile().getVelocity()));
+    	tnt.setVelocity(event.getProjectile().getVelocity().multiply(0.75f));
     	tnt.setFuseTicks(65);
     	
     	event.setProjectile(tnt);
