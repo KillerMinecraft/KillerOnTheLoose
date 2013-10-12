@@ -173,11 +173,12 @@ public class Killer extends GameMode
 					return "If a killer makes a compass, it will point at the nearest player. This won't work for other players.";
 
 			case 6:
-				return "Several monster eggs can be crafted by combining one of their dropped items with an iron ingot.";
-			case 7:
-				return "Dispensers can be crafted using a sapling instead of a bow. These work well with monster eggs.";
-			case 8:
 				return "Eyes of ender will help you find nether fortresses (to get blaze rods).\nThey can be crafted from an ender pearl and a spider eye.";
+				
+			case 7:
+				return allowCraftingMonsters.isEnabled() ? "Several monster eggs can be crafted by combining one of their dropped items with an iron ingot." : null;
+			case 8:
+				return allowCraftingMonsters.isEnabled() ? "Dispensers can be crafted using a sapling instead of a bow. These work well with monster eggs." : null;
 				
 			default:
 				return null;
