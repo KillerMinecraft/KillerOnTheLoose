@@ -1,4 +1,4 @@
-package com.ftwinston.KillerMinecraft.Modules.Killer;
+package com.ftwinston.KillerMinecraft.Modules.KillerOnTheLoose;
 
 import java.util.ArrayList;
 
@@ -23,7 +23,7 @@ public class Plugin extends GameModePlugin
 	@Override
 	public GameMode createInstance()
 	{
-		return new Killer();
+		return new KillerOnTheLoose();
 	}
 
 	@Override

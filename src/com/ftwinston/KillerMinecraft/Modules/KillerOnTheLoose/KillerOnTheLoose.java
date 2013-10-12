@@ -1,4 +1,4 @@
-package com.ftwinston.KillerMinecraft.Modules.Killer;
+package com.ftwinston.KillerMinecraft.Modules.KillerOnTheLoose;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,7 +38,7 @@ import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionType;
 import org.bukkit.Material;
 
-public class Killer extends GameMode
+public class KillerOnTheLoose extends GameMode
 {
 	ToggleOption ghastTearVictory, allowCraftingMonsters;
 	ChoiceOption<KillerType> killerType;
@@ -68,7 +68,7 @@ public class Killer extends GameMode
 		public boolean allowTeamChat() { return false; }
 	};
 	
-	public Killer()
+	public KillerOnTheLoose()
 	{
 		setTeams(new TeamInfo[] { survivors, killer });
 	}

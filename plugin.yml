@@ -1,5 +1,5 @@
-name: Killer
-main: com.ftwinston.KillerMinecraft.Modules.Killer.Plugin
+name: Killer on the Loose
+main: com.ftwinston.KillerMinecraft.Modules.KillerOnTheLoose.Plugin
 depend: [Killer Minecraft]
 version: 1
 load: STARTUP
