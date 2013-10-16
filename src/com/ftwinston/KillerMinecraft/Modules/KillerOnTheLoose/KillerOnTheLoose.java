@@ -196,17 +196,22 @@ public class KillerOnTheLoose extends GameMode
 					return "A player has been chosen to be the killer, and must kill everyone else.\nThey are invisible!";
 			case 1:
 				if ( team == killer )
+					return "Other players will see a message indicating how far away you are every 10 seconds. You will see a message with the distance to the nearest player at the same time.";
+				else
+					return "You will see a message indicating how far away the killer is every 10 seconds. The killer will see a message with the distance to the nearest player at the same time.";
+			case 2:
+				if ( team == killer )
 					return "You will briefly become visible when damaged.\nYou cannot be hit while invisible, except by ranged weapons.";
 				else
 					return "The killer will briefly become visible when damaged.\nThey cannot be hit while invisible, except by ranged weapons.";
-			case 2:
+			case 3:
 				if ( team == killer )
 					return "You will be decloaked when wielding a sword or bow.\nYour compass points at the nearest player.\nThe other players are told how far away you are.";
 				else
 					return "The killer will be decloaked when wielding a sword or bow.\nThe killer's compass points at the nearest player.\nThe other players are told how far away the killer is.";
-			case 3:
-				return "The other players get infinity bows and splash damage potions.";
 			case 4:
+				return "The other players get infinity bows and splash damage potions.";
+			case 5:
 				String message = "To win, the other players must kill the killer, or bring a ";
 			
 				message += Helper.tidyItemName(winningItems[0]);
