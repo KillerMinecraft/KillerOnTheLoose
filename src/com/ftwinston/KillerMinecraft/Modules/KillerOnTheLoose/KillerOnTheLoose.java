@@ -17,7 +17,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.World;
 import org.bukkit.World.Environment;
+import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
@@ -331,7 +333,7 @@ public class KillerOnTheLoose extends GameMode
 		else
 			winningItems = new Material[] { Material.BLAZE_ROD };
 		
-		plinthLoc = Helper.generatePlinth(getWorld(0));
+		plinthLoc = generatePlinth(getWorld(0));
 		restoreMessageProcessID = updateRangeMessageProcessID = -1;
 		inRangeLastTime.clear();
 		
@@ -420,6 +422,71 @@ public class KillerOnTheLoose extends GameMode
 					}
 				}
 			}, 50, 200);
+	}
+	
+	static Location generatePlinth(World world)
+	{
+		Location loc = world.getSpawnLocation().add(20, 0, 0);
+		int x = loc.getBlockX(), z = loc.getBlockZ();
+		
+		int highestGround = world.getSeaLevel();		
+		for ( int testX = x-1; testX <= x+1; testX++ )
+			for ( int testZ = z-1; testZ <= z+1; testZ++ )
+			{
+				int groundY = Helper.getHighestYIgnoring(world, testX, testZ, world.getSeaLevel(), Material.LOG, Material.LEAVES, Material.HUGE_MUSHROOM_1, Material.HUGE_MUSHROOM_2);
+				if ( groundY > highestGround )
+					highestGround = groundY;
+			}
+		
+		int plinthPeakHeight = highestGround + 12, spaceBetweenPlinthAndGlowstone = 4;
+		
+		// a 3x3 column from bedrock to the plinth height
+		for ( int y = 0; y < plinthPeakHeight; y++ )
+			for ( int ix = x - 1; ix < x + 2; ix++ )
+				for ( int iz = z - 1; iz < z + 2; iz++ )
+				{
+					Block b = world.getBlockAt(ix, y, iz);
+					b.setType(Material.BEDROCK);
+				}
+		
+		// with one block sticking up from it
+		int y = plinthPeakHeight;
+		for ( int ix = x - 1; ix < x + 2; ix++ )
+				for ( int iz = z - 1; iz < z + 2; iz++ )
+				{
+					Block b = world.getBlockAt(ix, y, iz);
+					b.setType(ix == x && iz == z ? Material.BEDROCK : Material.AIR);
+				}
+		
+		// that has a pressure plate on it
+		y = plinthPeakHeight + 1;
+		Location plinthLoc = new Location(world, x, y, z);
+		for ( int ix = x - 1; ix < x + 2; ix++ )
+				for ( int iz = z - 1; iz < z + 2; iz++ )
+				{
+					Block b = world.getBlockAt(ix, y, iz);
+					b.setType(ix == x && iz == z ? Material.STONE_PLATE : Material.AIR);
+				}
+				
+		// then a space
+		for ( y = plinthPeakHeight + 2; y <= plinthPeakHeight + spaceBetweenPlinthAndGlowstone; y++ )
+			for ( int ix = x - 1; ix < x + 2; ix++ )
+				for ( int iz = z - 1; iz < z + 2; iz++ )
+				{
+					Block b = world.getBlockAt(ix, y, iz);
+					b.setType(Material.AIR);
+				}
+		
+		// and then a 1x1 pillar of glowstone, up to max height
+		for ( y = plinthPeakHeight + spaceBetweenPlinthAndGlowstone + 1; y < world.getMaxHeight(); y++ )
+			for ( int ix = x - 1; ix < x + 2; ix++ )
+				for ( int iz = z - 1; iz < z + 2; iz++ )
+				{
+					Block b = world.getBlockAt(ix, y, iz);
+					b.setType(ix == x && iz == z ? Material.GLOWSTONE : Material.AIR);
+				}
+		
+		return plinthLoc;
 	}
 	
 	private void allocateMysteryKiller()
