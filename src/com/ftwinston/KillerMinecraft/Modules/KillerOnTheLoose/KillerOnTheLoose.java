@@ -306,7 +306,7 @@ public class KillerOnTheLoose extends GameMode
 	public Location getSpawnLocation(Player player)
 	{
 		Location spawnPoint;
-		if ( Helper.getTeam(getGame(), player) == killer )
+		if ( getTeam(player) == killer )
 		{
 			// the killer starts a good distance away from the other players
 			spawnPoint = Helper.randomizeLocation(getWorld(0).getSpawnLocation(), 64, 0, 64, 96, 0, 96);
@@ -387,7 +387,7 @@ public class KillerOnTheLoose extends GameMode
 							continue;
 						
 						double bestRangeSq = maxKillerDetectionRangeSq + 1;
-						TeamInfo lookerTeam = Helper.getTeam(getGame(), looker);
+						TeamInfo lookerTeam = getTeam(looker);
 						TeamInfo targetTeam = lookerTeam == killer ? survivors : killer;
 						
 						for ( Player target : getOnlinePlayers(new PlayerFilter().alive().team(targetTeam)) )
@@ -756,7 +756,7 @@ public class KillerOnTheLoose extends GameMode
 			
 			prepareSurvivor(player, killers, numSurvivors/killers.size());
 		}
-		else if ( Helper.getTeam(getGame(), player) == killer ) // inform them that they're still a killer
+		else if ( getTeam(player) == killer ) // inform them that they're still a killer
 			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(killer)).size() > 1 ? "a" : "the" ) + " killer!"); 
 		else
 			player.sendMessage("Welcome back. You are not the killer, and you're still alive.");
@@ -803,7 +803,7 @@ public class KillerOnTheLoose extends GameMode
 			if ( hasGameFinished() )
 				return;
 			
-			TeamInfo team = Helper.getTeam(getGame(), player);
+			TeamInfo team = getTeam(player);
 			int numSurvivorsOnTeam = getOnlinePlayers(new PlayerFilter().alive().team(team)).size();
 			
 			if ( numSurvivorsOnTeam > 0 )
@@ -831,7 +831,7 @@ public class KillerOnTheLoose extends GameMode
 	@Override
 	public Location getCompassTarget(Player player)
 	{
-		TeamInfo team = Helper.getTeam(getGame(), player);
+		TeamInfo team = getTeam(player);
 		if ( team == killer )
 			return Helper.getNearestPlayerTo(player, getOnlinePlayers(new PlayerFilter().alive().notTeam(team))); // points in a random direction if no players are found
 		
@@ -879,7 +879,7 @@ public class KillerOnTheLoose extends GameMode
 			return;
 		
 		Player victim = (Player)event.getEntity();
-		if ( victim == null || Helper.getTeam(getGame(), victim) != killer )
+		if ( victim == null || getTeam(victim) != killer )
 			return;
 		
 		if ( restoreMessageProcessID != -1 )
@@ -929,7 +929,7 @@ public class KillerOnTheLoose extends GameMode
 		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
 			return;
 
-		if ( Helper.getTeam(getGame(), event.getPlayer()) != killer )
+		if ( getTeam(event.getPlayer()) != killer )
 			return;
 		
 		Player player = event.getPlayer();
@@ -962,7 +962,7 @@ public class KillerOnTheLoose extends GameMode
 		
 		Player player = event.getPlayer();
 		
-		if ( Helper.getTeam(getGame(), player) != killer )
+		if ( getTeam(player) != killer )
 			return;
 		
 		// if they currently have nothing in their hand, assume they just dropped this weapon
@@ -979,12 +979,12 @@ public class KillerOnTheLoose extends GameMode
 	@EventHandler(ignoreCancelled = true)
 	public void playerPickedUpItem(PlayerPickupItemEvent event)
 	{
-		if ( killerType.getValue() == KillerType.CRAZY_KILLER && event.getItem().getItemStack().getType() == Material.DIRT && Helper.getTeam(getGame(), event.getPlayer()) == killer )
+		if ( killerType.getValue() == KillerType.CRAZY_KILLER && event.getItem().getItemStack().getType() == Material.DIRT && getTeam(event.getPlayer()) == killer )
 			event.getItem().getItemStack().setType(Material.TNT);
 		
 		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER
 				|| !isWeapon(event.getItem().getItemStack().getType())
-				|| Helper.getTeam(getGame(), event.getPlayer()) != killer )
+				|| getTeam(event.getPlayer()) != killer )
 			return;
 		
 		final Player player = event.getPlayer();
@@ -1013,7 +1013,7 @@ public class KillerOnTheLoose extends GameMode
     	if ( player == null )
     		return;
 	
-		if ( Helper.getTeam(getGame(), player) != killer )
+		if ( getTeam(player) != killer )
 			return;
 		
 		// rather than work out all the click crap, let's just see if it changes
@@ -1067,7 +1067,7 @@ public class KillerOnTheLoose extends GameMode
     		return;
     	
     	Player player = (Player)event.getEntity();
-    	if ( Helper.getTeam(getGame(), player) != killer )
+    	if ( getTeam(player) != killer )
     		return;
     	
     	if ( !player.getInventory().contains(Material.TNT) )
