@@ -3,6 +3,7 @@
 	<name>Killer on the Loose</name>
 	<comment></comment>
 	<projects>
+		<project>killer</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

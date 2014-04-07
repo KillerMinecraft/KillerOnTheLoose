@@ -28,6 +28,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -88,7 +89,7 @@ public class KillerOnTheLoose extends GameMode
 		
 		return new Option[] { killerType, ghastTearVictory, allowCraftingMonsters };
 	}
-	
+
 	@Override
 	public org.bukkit.scoreboard.Scoreboard createScoreboard()
 	{
@@ -114,7 +115,7 @@ public class KillerOnTheLoose extends GameMode
 		for ( Player player : players )
 			setTeam(player, survivors);	
 	}
-		
+
 	@Override
 	public String getHelpMessage(int num, TeamInfo team)
 	{
@@ -130,7 +131,7 @@ public class KillerOnTheLoose extends GameMode
 			return null;
 		}
 	}
-	
+
 	public String getHelpMessageMysteryKiler(int num, TeamInfo team)
 	{
 		switch ( num )
@@ -141,7 +142,7 @@ public class KillerOnTheLoose extends GameMode
 				else if ( getPlayers(new PlayerFilter().team(killer)).size() > 0 )
 					return "(At least) one player has been chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
 				else
-					return "At the start of the next game day, a one player will be chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
+					return "At the start of the next game day, a player will be chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
 			case 1:
 				if ( team == killer )
 					return "As a killer, you win if all the friendly players die. You won't be told who the other killers are.";
@@ -285,25 +286,18 @@ public class KillerOnTheLoose extends GameMode
 	
 	@Override
 	public boolean allowTeamSelection() { return false; }
-	
+
 	@Override
 	public boolean isLocationProtected(Location l, Player p)
 	{
 		// no protection, except for the plinth
-		return  plinthLoc != null && l.getWorld() == plinthLoc.getWorld()
-	            && l.getX() >= plinthLoc.getBlockX() - 1
-	            && l.getX() <= plinthLoc.getBlockX() + 1
-	            && l.getZ() >= plinthLoc.getBlockZ() - 1
-	            && l.getZ() <= plinthLoc.getBlockZ() + 1;
-	}
-	
-	@Override
-	
-	public boolean isAllowedToRespawn(Player player) { return getPlayers(new PlayerFilter().team(killer)).size() == 0; } // respawn if no killers allocated
-	
-	@Override
-	public boolean useDiscreetDeathMessages() { return killerType.getValue() == KillerType.MYSTERY_KILLER; }
-	
+		return plinthLoc != null && l.getWorld() == plinthLoc.getWorld()
+	           && l.getX() >= plinthLoc.getBlockX() - 1
+	           && l.getX() <= plinthLoc.getBlockX() + 1
+	           && l.getZ() >= plinthLoc.getBlockZ() - 1
+	           && l.getZ() <= plinthLoc.getBlockZ() + 1;
+	} 
+
 	@Override
 	public Location getSpawnLocation(Player player)
 	{
@@ -318,13 +312,14 @@ public class KillerOnTheLoose extends GameMode
 
 		return Helper.getSafeSpawnLocationNear(spawnPoint);
 	}
-	
+
 	int allocationProcessID = -1;
 	Location plinthLoc;
+
 	static final double maxKillerDetectionRangeSq = 50 * 50;
 	Map<String, Boolean> inRangeLastTime = new LinkedHashMap<String, Boolean>();
 	int restoreMessageProcessID = -1, updateRangeMessageProcessID = -1;
-	
+
 	@Override
 	public void gameStarted()
 	{
@@ -334,6 +329,7 @@ public class KillerOnTheLoose extends GameMode
 			winningItems = new Material[] { Material.BLAZE_ROD };
 		
 		plinthLoc = generatePlinth(getWorld(0));
+		
 		restoreMessageProcessID = updateRangeMessageProcessID = -1;
 		inRangeLastTime.clear();
 		
@@ -360,11 +356,11 @@ public class KillerOnTheLoose extends GameMode
 					
 					lastRun = time;
 				}
-			}, 1800L, 100L); // initial wait: 90s, then check every 5s (still won't try to assign unless it detects a new day starting)
+			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)
 		}
 		
-		List<Player> killerPlayers = getOnlinePlayers(new PlayerFilter().team(killer));
-		List<Player> survivorPlayers = getOnlinePlayers(new PlayerFilter().team(survivors));
+		List<Player> killerPlayers = getOnlinePlayers(new PlayerFilter().includeSpectators().team(killer));
+		List<Player> survivorPlayers = getOnlinePlayers(new PlayerFilter().includeSpectators().team(survivors));
 		float ratio = survivorPlayers.size() / (float)killerPlayers.size();
 		
 		for ( Player player : killerPlayers )
@@ -383,7 +379,7 @@ public class KillerOnTheLoose extends GameMode
 			updateRangeMessageProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
 				public void run()
 				{
-					for ( Player looker : getOnlinePlayers(new PlayerFilter().alive()) )
+					for ( Player looker : getOnlinePlayers() )
 					{
 						if ( looker == null || !looker.isOnline() )
 							continue;
@@ -392,7 +388,7 @@ public class KillerOnTheLoose extends GameMode
 						TeamInfo lookerTeam = getTeam(looker);
 						TeamInfo targetTeam = lookerTeam == killer ? survivors : killer;
 						
-						for ( Player target : getOnlinePlayers(new PlayerFilter().alive().team(targetTeam)) )
+						for ( Player target : getOnlinePlayers(new PlayerFilter().team(targetTeam)) )
 						{
 							if ( target.getWorld() != looker.getWorld() )
 								continue;
@@ -434,6 +430,7 @@ public class KillerOnTheLoose extends GameMode
 			for ( int testZ = z-1; testZ <= z+1; testZ++ )
 			{
 				int groundY = Helper.getHighestYIgnoring(world, testX, testZ, world.getSeaLevel(), Material.LOG, Material.LEAVES, Material.HUGE_MUSHROOM_1, Material.HUGE_MUSHROOM_2);
+				
 				if ( groundY > highestGround )
 					highestGround = groundY;
 			}
@@ -488,11 +485,11 @@ public class KillerOnTheLoose extends GameMode
 		
 		return plinthLoc;
 	}
-	
+
 	private void allocateMysteryKiller()
 	{
-		int numAlive = getOnlinePlayers(new PlayerFilter().alive()).size();
-		int numAliveKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
+		int numAlive = getOnlinePlayers(new PlayerFilter()).size();
+		int numAliveKillers = getOnlinePlayers(new PlayerFilter().team(killer)).size();
 		
 		if ( numAlive == 0 )
 			return;
@@ -505,7 +502,7 @@ public class KillerOnTheLoose extends GameMode
 			return;
 
 		// pick players
-		List<Player> players = getOnlinePlayers(new PlayerFilter().alive().team(survivors));
+		List<Player> players = getOnlinePlayers(new PlayerFilter().team(survivors));
 		float numFriendliesPerKiller = (float)(players.size() - numToAdd) / (float)(numAliveKillers + numToAdd);
 		for ( int i=0; i<numToAdd; i++ )
 		{
@@ -520,7 +517,7 @@ public class KillerOnTheLoose extends GameMode
 			prepareKiller(player, numToAdd, numFriendliesPerKiller);
 		}
 		
-		players = getOnlinePlayers(new PlayerFilter().alive().team(survivors)); // some have moved to the killer team now, so re-select
+		players = getOnlinePlayers(new PlayerFilter().includeSpectators().team(survivors)); // some have moved to the killer team now, so re-select
 		String message = ChatColor.YELLOW + (numToAdd == 1 ? "A killer has been allocated. You are not the killer!" : numToAdd + " killers have been allocated. You are not a killer!"); 
 				
 		for ( Player player : players )
@@ -593,8 +590,7 @@ public class KillerOnTheLoose extends GameMode
 	
 	private void prepareKiller(Player player, int numKillersAllocated, float numSurvivorsPerKiller)
 	{
-		// this ought to say "a" if multiple killers are/have been present in the game
-		String message = ChatColor.RED.toString();
+		String message = ChatColor.YELLOW + "A killer has been allocated. " + ChatColor.RED;
 		if ( numKillersAllocated == 1 )
 			message += "You are the killer!\n" + ChatColor.RESET;
 		else
@@ -610,7 +606,7 @@ public class KillerOnTheLoose extends GameMode
 		case INVISIBLE_KILLER:
 			message += "You are invisible.";
 			giveInvisibleKillerItems(player.getInventory(), numSurvivorsPerKiller);
-			setPlayerVisibility(player, false);
+			Helper.makePlayerInvisibleToAll(getGame(), player);
 			break;
 		case CRAZY_KILLER:
 			message += "Every dirt block you pick up will turn into TNT...";
@@ -801,7 +797,7 @@ public class KillerOnTheLoose extends GameMode
 		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 		{
 			// announce who the killer(s) was/were
-			List<OfflinePlayer> killers = getPlayers(new PlayerFilter().team(killer));
+			List<OfflinePlayer> killers = getPlayers(new PlayerFilter().includeSpectators().team(killer));
 			String message = killers.size() == 1 ? "The killer was: " : "The killers were:\n";
 			
 			for ( OfflinePlayer killer : killers )
@@ -812,97 +808,124 @@ public class KillerOnTheLoose extends GameMode
 	}
 	
 	@Override
-	public void playerJoinedLate(Player player, boolean isNewPlayer)
+	public void playerJoinedLate(Player player)
 	{
-		if ( isNewPlayer )
-		{
-			setTeam(player,  survivors);
-			
-			float numSurvivors = getOnlinePlayers(new PlayerFilter().team(survivors)).size();
-			List<Player> killers = getOnlinePlayers(new PlayerFilter().team(killer));
-			
-			prepareSurvivor(player, killers, numSurvivors/killers.size());
-		}
-		else if ( getTeam(player) == killer ) // inform them that they're still a killer
-			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().team(killer)).size() > 1 ? "a" : "the" ) + " killer!"); 
-		else
+		setTeam(player,  survivors);
+		
+		float numSurvivors = getOnlinePlayers(new PlayerFilter().includeSpectators().team(survivors)).size();
+		List<Player> killers = getOnlinePlayers(new PlayerFilter().includeSpectators().team(killer));
+		
+		prepareSurvivor(player, killers, numSurvivors/killers.size());
+		hideInvisibleKillers(player);
+	}
+	
+	@Override
+	public void playerReconnected(Player player)
+	{
+		if ( getTeam(player) == killer ) // inform them that they're still a killer
+			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().includeSpectators().team(killer)).size() > 1 ? "a" : "the" ) + " killer!");
+		else if ( getTeam(player) == survivors )
 			player.sendMessage("Welcome back. You are not the killer, and you're still alive.");
 		
-		
+		hideInvisibleKillers(player);
+	};
+	
+	void hideInvisibleKillers(Player player)
+	{
+		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
+			return;
 		// hide all killers from this player!
-		for ( Player other : getOnlinePlayers(new PlayerFilter().alive().team(killer)) )
+		for ( Player other : getOnlinePlayers(new PlayerFilter().team(killer).exclude(player)) )
 			if ( other != player )
-				hidePlayer(other, player);
+				Helper.hidePlayer(player, other);
 	}
 	
 	@Override
 	public void playerQuit(OfflinePlayer player)
 	{
-		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
-		{
-			if ( hasGameFinished() || getOnlinePlayers(new PlayerFilter().team(killer)).size() == 0 )
-				return;
-			
-			int numFriendlies = getOnlinePlayers(new PlayerFilter().alive().team(survivors)).size();
-			int numKillers = getOnlinePlayers(new PlayerFilter().alive().team(killer)).size();
-			
-			if ( numFriendlies != 0 )
-			{
-				// if only one person left (and they're not the killer), tell people they can /vote if they want to start a new game
-				if ( numFriendlies == 1 && numKillers == 0 )
-					broadcastMessage("There's only one player left, and they're not the killer.\nIf you want to draw this game and start another, start a vote by typing " + ChatColor.YELLOW + "/vote");
-				return;
-			}
-			
-			if ( numKillers > 0 )
-			{
-				broadcastMessage("All the friendly players died - the killer wins!");
-				finishGame(); // killers win
-			}
-			else
-			{
-				broadcastMessage("Everybody died - nobody wins!");
-				finishGame(); // nobody wins
-			}
-		}
-		else
-		{
-			if ( hasGameFinished() )
-				return;
-			
-			TeamInfo team = getTeam(player);
-			int numSurvivorsOnTeam = getOnlinePlayers(new PlayerFilter().alive().team(team)).size();
-			
-			if ( numSurvivorsOnTeam > 0 )
-				return; // this players still has living allies, so this doesn't end the game
-			
-			int numSurvivorsTotal = getOnlinePlayers(new PlayerFilter().alive()).size();
-			if ( numSurvivorsTotal == 0 )
-			{
-				broadcastMessage("Everybody died - nobody wins!");
-				finishGame(); // draw, nobody wins
-			}
-			else if ( team == killer )
-			{
-				broadcastMessage("The killer died - the friendly players win!");
-				finishGame(); // killer died, friendlies win
-			}
-			else
-			{
-				broadcastMessage("All the friendly players died - the killer wins!");
-				finishGame(); // friendlies died, killer wins
-			}
-		}
+		playerKilledOrQuit(player);
 	}
 	
+	void playerKilledOrQuit(OfflinePlayer player)
+	{
+		final String playerName = player.getName();
+		
+		getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
+			public void run()
+			{
+				OfflinePlayer player2 = getPlugin().getServer().getPlayerExact(playerName);
+				
+				if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
+				{
+					if ( hasGameFinished() || getOnlinePlayers(new PlayerFilter().includeSpectators().team(killer)).size() == 0 )
+						return;
+					
+					int numFriendlies = getOnlinePlayers(new PlayerFilter().team(survivors).exclude(player2)).size();
+					int numKillers = getOnlinePlayers(new PlayerFilter().team(killer)).size();
+					
+					if ( numFriendlies > 0 )
+					{
+						// if only one person left (and they're not the killer), tell people they can /vote if they want to start a new game
+						if ( numFriendlies == 1 && numKillers == 0 )
+							broadcastMessage(ChatColor.YELLOW + "There's only one player left, and they're not the killer. The friendly players win!");
+						else
+							return; // as long as there are survivors, the game isn't over
+					}
+					
+					else if ( numKillers > 0 )
+						broadcastMessage(ChatColor.YELLOW + "All the friendly players died - the killer wins!");
+					else
+						broadcastMessage(ChatColor.YELLOW + "Everybody died - nobody wins!");
+
+					finishGame();
+				}
+				else
+				{
+					if ( hasGameFinished() )
+						return;
+					
+					TeamInfo team = getTeam(player2);
+					int numSurvivorsOnTeam = getOnlinePlayers(new PlayerFilter().team(team)).size();
+					
+					if ( numSurvivorsOnTeam > 0 )
+						return; // this players still has living allies, so this doesn't end the game
+					
+					int numSurvivorsTotal = getOnlinePlayers().size();
+					if ( numSurvivorsTotal == 0 )
+						broadcastMessage(ChatColor.YELLOW + "Everybody died - nobody wins!");
+					else if ( team == killer )
+						broadcastMessage(ChatColor.YELLOW + "The killer died - the friendly players win!");
+					else
+						broadcastMessage(ChatColor.YELLOW + "All the friendly players died - the killer wins!");
+
+					finishGame();
+				}
+			}
+		});
+	}
+
 	@Override
 	public Location getCompassTarget(Player player)
 	{
 		TeamInfo team = getTeam(player);
 		if ( team == killer )
-			return Helper.getNearestPlayerTo(player, getOnlinePlayers(new PlayerFilter().alive().notTeam(team))); // points in a random direction if no players are found
+			return Helper.getNearestPlayerTo(player, getOnlinePlayers(new PlayerFilter().notTeam(team))); // points in a random direction if no players are found
 		
 		return null;
+	}
+
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void onPlayerKilled(PlayerDeathEvent event)
+	{	
+		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
+			event.setDeathMessage(ChatColor.RED + event.getEntity().getName() + " died");
+		
+		boolean killerAllocated = getPlayers(new PlayerFilter().includeSpectators().team(killer)).size() != 0;
+		if ( killerAllocated )
+		{// if no killers allocated, allow respawning
+			Helper.makeSpectator(getGame(), event.getEntity());
+			playerKilledOrQuit(event.getEntity());
+		}
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -955,7 +978,7 @@ public class KillerOnTheLoose extends GameMode
 		}
 		else
 		{// make them visible for a period of time
-			setPlayerVisibility(victim, true);
+			Helper.makePlayerVisibleToAll(getGame(), victim);
 			victim.sendMessage(ChatColor.RED + "You can be seen!");
 		}
 		
@@ -973,7 +996,7 @@ public class KillerOnTheLoose extends GameMode
     	public void run()
     	{
 			Player player = getPlugin().getServer().getPlayerExact(name);
-			if ( player == null || !player.isOnline() && !Helper.isAlive(getGame(), player) )
+			if ( player == null || !player.isOnline() || Helper.isSpectator(getGame(), player) )
 				return; // only if the player is still in the game
 			
 			ItemStack heldItem = player.getItemInHand();
@@ -983,7 +1006,7 @@ public class KillerOnTheLoose extends GameMode
 			}
 			else
 			{
-				setPlayerVisibility(player, false);
+				Helper.makePlayerInvisibleToAll(getGame(), player);
 				player.sendMessage("You are now invisible again");
 			}
 			restoreMessageProcessID = -1;
@@ -1011,12 +1034,12 @@ public class KillerOnTheLoose extends GameMode
 		
 		if ( newIsWeapon )
 		{
-			setPlayerVisibility(player, true);
+			Helper.makePlayerVisibleToAll(getGame(), player);
 			player.sendMessage(ChatColor.RED + "You can be seen!");
 		}
 		else if ( !newIsWeapon )
 		{
-			setPlayerVisibility(player, false);
+			Helper.makePlayerInvisibleToAll(getGame(), player);
 			player.sendMessage("You are now invisible again");	
 		}
     }
@@ -1038,7 +1061,7 @@ public class KillerOnTheLoose extends GameMode
 		
 		if ( restoreMessageProcessID == -1 && isWeapon(player.getItemInHand().getType()) )
 		{
-			setPlayerVisibility(player, false);
+			Helper.makePlayerInvisibleToAll(getGame(), player);
 			player.sendMessage("You are now invisible again");	
 		}
     }
@@ -1063,7 +1086,7 @@ public class KillerOnTheLoose extends GameMode
 				ItemStack item = player.getItemInHand(); 
 				if ( restoreMessageProcessID == -1 && item != null && isWeapon(item.getType()) )
 				{
-					setPlayerVisibility(player, true);
+					Helper.makePlayerVisibleToAll(getGame(), player);
 					player.sendMessage(ChatColor.RED + "You can be seen!");
 				}
 			}
@@ -1100,12 +1123,12 @@ public class KillerOnTheLoose extends GameMode
 				
 				if ( weaponAfter )
 				{
-					setPlayerVisibility(player, true);
+					Helper.makePlayerVisibleToAll(getGame(), player);
 					player.sendMessage(ChatColor.RED + "You can be seen!");
 				}
 				else if ( !weaponAfter )
 				{
-					setPlayerVisibility(player, false);
+					Helper.makePlayerInvisibleToAll(getGame(), player);
 					player.sendMessage("You are now invisible again");	
 				}
 			}
