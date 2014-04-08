@@ -1,8 +1,6 @@
 package com.ftwinston.KillerMinecraft.Modules.KillerOnTheLoose;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.ftwinston.KillerMinecraft.GameMode;
 import com.ftwinston.KillerMinecraft.Helper;
@@ -35,10 +33,8 @@ import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.potion.PotionType;
 import org.bukkit.Material;
 
 public class KillerOnTheLoose extends GameMode
@@ -81,7 +77,7 @@ public class KillerOnTheLoose extends GameMode
 	{
 		killerType = new ChoiceOption<KillerType>("Killer type");
 		killerType.addChoice("Mystery Killer", KillerType.MYSTERY_KILLER, Material.FLINT_AND_STEEL, "No special powers, but", "Killer's identity is", "kept secret");
-		killerType.addChoice("Invisible Killer", KillerType.INVISIBLE_KILLER, Material.GLASS, "Killer can't be seen,", "other players get infinity", "bows and warnings when", "the killer is nearby");
+		killerType.addChoice("Invisible Killer", KillerType.INVISIBLE_KILLER, Material.GLASS, "Killer can't be seen,", "but emits particles. Other", "players get infinity bows.");
 		killerType.addChoice("Crazy Killer", KillerType.CRAZY_KILLER, Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
 		
 		ghastTearVictory = new ToggleOption("Ghast tear victory", true, "When enabled, friendly players can", "win by returning a ghast tear or", "a blaze rod. When disabled, they", "can only win with a blaze rod.");
@@ -199,21 +195,21 @@ public class KillerOnTheLoose extends GameMode
 					return "A player has been chosen to be the killer, and must kill everyone else.\nThey are invisible!";
 			case 1:
 				if ( team == killer )
-					return "Other players will see a message indicating how far away you are every 10 seconds. You will see a message with the distance to the nearest player at the same time.";
+					return "If they look closely, other players will see the grey particles that you emit.";
 				else
-					return "You will see a message indicating how far away the killer is every 10 seconds. The killer will see a message with the distance to the nearest player at the same time.";
+					return "If you look closely, you will see the grey particles that the killer emits.";
 			case 2:
 				if ( team == killer )
-					return "You will briefly become visible when damaged.\nYou cannot be hit while invisible, except by ranged weapons.";
+					return "Your items and armor will be visible to other players\nYour compass points at the nearest player.";
 				else
-					return "The killer will briefly become visible when damaged.\nThey cannot be hit while invisible, except by ranged weapons.";
+					return "Items wielded by the killer will be still visible.\nThe killer's compass points at the nearest player.";
 			case 3:
 				if ( team == killer )
-					return "Your items and armor will be visible to other players\nYour compass points at the nearest player.\nThe other players are told how far away you are.";
+					return "You will briefly become visible when damaged.";
 				else
-					return "Items wielded by the killer will be still visible.\nThe killer's compass points at the nearest player.\nThe other players are told how far away the killer is.";
+					return "The killer will briefly become visible when damaged.";
 			case 4:
-				return "The other players get infinity bows and splash damage potions.";
+				return "The other players get infinity bows.";
 			case 5:
 				String message = "To win, the other players must kill the killer, or bring a ";
 			
@@ -318,13 +314,9 @@ public class KillerOnTheLoose extends GameMode
 		return Helper.getSafeSpawnLocationNear(spawnPoint);
 	}
 
-	int allocationProcessID = -1;
+	int allocationProcessID = -1, restoreMessageProcessID = -1;
 	Location plinthLoc;
-
-	static final double maxKillerDetectionRangeSq = 50 * 50;
-	Map<String, Boolean> inRangeLastTime = new LinkedHashMap<String, Boolean>();
-	int restoreMessageProcessID = -1, updateRangeMessageProcessID = -1;
-
+	
 	@Override
 	public void gameStarted()
 	{
@@ -335,8 +327,7 @@ public class KillerOnTheLoose extends GameMode
 		
 		plinthLoc = generatePlinth(getWorld(0));
 		
-		restoreMessageProcessID = updateRangeMessageProcessID = -1;
-		inRangeLastTime.clear();
+		restoreMessageProcessID = -1;
 		
 		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 		{// check based on the time of day
@@ -379,50 +370,6 @@ public class KillerOnTheLoose extends GameMode
 			for ( Player player : survivorPlayers )
 				prepareSurvivor(player, killerPlayers, ratio);
 		}
-		
-		if ( killerType.getValue() == KillerType.INVISIBLE_KILLER )
-			updateRangeMessageProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
-				public void run()
-				{
-					for ( Player looker : getOnlinePlayers() )
-					{
-						if ( looker == null || !looker.isOnline() )
-							continue;
-						
-						double bestRangeSq = maxKillerDetectionRangeSq + 1;
-						TeamInfo lookerTeam = getTeam(looker);
-						TeamInfo targetTeam = lookerTeam == killer ? survivors : killer;
-						
-						for ( Player target : getOnlinePlayers(new PlayerFilter().team(targetTeam)) )
-						{
-							if ( target.getWorld() != looker.getWorld() )
-								continue;
-							
-							double rangeSq = target.getLocation().distanceSquared(looker.getLocation());
-							if ( rangeSq < bestRangeSq )
-								bestRangeSq = rangeSq;
-						}
-						
-						if ( bestRangeSq < maxKillerDetectionRangeSq )
-						{
-							int bestRange = (int)(Math.sqrt(bestRangeSq) + 0.5); // round to nearest integer
-							if ( lookerTeam == killer )
-								looker.sendMessage("Range to nearest player: " + bestRange + " metres");
-							else
-								looker.sendMessage(ChatColor.RED + "Killer detected! Range: " + bestRange + " metres");
-							inRangeLastTime.put(looker.getName(), true);
-						}
-						else if ( inRangeLastTime.containsKey(looker.getName()) && inRangeLastTime.get(looker.getName()) )
-						{
-							if ( lookerTeam == killer )
-								looker.sendMessage("All players are out of range");
-							else
-								looker.sendMessage("No killer detected");
-							inRangeLastTime.put(looker.getName(), false);
-						}
-					}
-				}
-			}, 50, 200);
 	}
 	
 	static Location generatePlinth(World world)
@@ -540,14 +487,6 @@ public class KillerOnTheLoose extends GameMode
 			stack.addEnchantment(Enchantment.ARROW_INFINITE, 1);
 			inv.addItem(stack);
 			inv.addItem(new ItemStack(Material.ARROW, 1)); // you need 1 arrow for the infinity bow
-			
-			// give some splash potions of damage
-			Potion pot = new Potion(PotionType.INSTANT_DAMAGE);
-			pot.setLevel(1);
-			pot.splash();
-			
-			stack = pot.toItemStack(Math.max(2, (int)(32f / numSurvivorsPerKiller)));
-			inv.addItem(stack);
 			break;
 			
 		case CRAZY_KILLER:
@@ -778,17 +717,11 @@ public class KillerOnTheLoose extends GameMode
 	@Override
 	public void gameFinished()
 	{
+		// stop our scheduled processes
 		if ( allocationProcessID != -1 )
 		{
 			getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
 			allocationProcessID = -1;
-		}
-
-		// stop our scheduled processes
-		if ( updateRangeMessageProcessID != -1 )
-		{
-			getPlugin().getServer().getScheduler().cancelTask(updateRangeMessageProcessID);
-			updateRangeMessageProcessID = -1;
 		}
 		
 		if ( restoreMessageProcessID != -1 )
@@ -796,8 +729,6 @@ public class KillerOnTheLoose extends GameMode
 			getPlugin().getServer().getScheduler().cancelTask(restoreMessageProcessID);
 			restoreMessageProcessID = -1;
 		}
-		
-		inRangeLastTime.clear();
 		
 		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 		{
@@ -976,7 +907,7 @@ public class KillerOnTheLoose extends GameMode
 			return;
 		
 		Player victim = (Player)event.getEntity();
-		if ( victim == null || getTeam(victim) != killer )
+		if ( getTeam(victim) != killer )
 			return;
 		
 		if ( restoreMessageProcessID != -1 )
