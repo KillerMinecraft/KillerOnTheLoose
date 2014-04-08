@@ -29,15 +29,15 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.potion.Potion;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
 import org.bukkit.Material;
 
@@ -209,9 +209,9 @@ public class KillerOnTheLoose extends GameMode
 					return "The killer will briefly become visible when damaged.\nThey cannot be hit while invisible, except by ranged weapons.";
 			case 3:
 				if ( team == killer )
-					return "You will be decloaked when wielding a sword or bow.\nYour compass points at the nearest player.\nThe other players are told how far away you are.";
+					return "Your items and armor will be visible to other players\nYour compass points at the nearest player.\nThe other players are told how far away you are.";
 				else
-					return "The killer will be decloaked when wielding a sword or bow.\nThe killer's compass points at the nearest player.\nThe other players are told how far away the killer is.";
+					return "Items wielded by the killer will be still visible.\nThe killer's compass points at the nearest player.\nThe other players are told how far away the killer is.";
 			case 4:
 				return "The other players get infinity bows and splash damage potions.";
 			case 5:
@@ -260,6 +260,11 @@ public class KillerOnTheLoose extends GameMode
 				else
 					return "The killer starts with a compass, which points at the nearest player.";
 			case 4:
+				if ( team == killer )
+					return "You will respawn, but the other players can't.";
+				else
+					return "The killer can respawn, but the other players can't.";
+			case 5:
 				String message = "The other players win if the killer dies, or if they bring a ";			
 				message += Helper.tidyItemName(winningItems[0]);
 				
@@ -273,7 +278,7 @@ public class KillerOnTheLoose extends GameMode
 				
 				message += " to the plinth near the spawn.";
 				return message;
-			case 5:
+			case 6:
 				if ( team == killer )
 					return "You can make buttons and pressure plates with the stone you started with.\nTry to avoid blowing yourself up!";
 				else
@@ -606,7 +611,7 @@ public class KillerOnTheLoose extends GameMode
 		case INVISIBLE_KILLER:
 			message += "You are invisible.";
 			giveInvisibleKillerItems(player.getInventory(), numSurvivorsPerKiller);
-			Helper.makePlayerInvisibleToAll(getGame(), player);
+			setVisibility(player, false);
 			break;
 		case CRAZY_KILLER:
 			message += "Every dirt block you pick up will turn into TNT...";
@@ -816,7 +821,6 @@ public class KillerOnTheLoose extends GameMode
 		List<Player> killers = getOnlinePlayers(new PlayerFilter().includeSpectators().team(killer));
 		
 		prepareSurvivor(player, killers, numSurvivors/killers.size());
-		hideInvisibleKillers(player);
 	}
 	
 	@Override
@@ -826,19 +830,7 @@ public class KillerOnTheLoose extends GameMode
 			player.sendMessage("Welcome back. " + ChatColor.RED + "You are still " + (getPlayers(new PlayerFilter().includeSpectators().team(killer)).size() > 1 ? "a" : "the" ) + " killer!");
 		else if ( getTeam(player) == survivors )
 			player.sendMessage("Welcome back. You are not the killer, and you're still alive.");
-		
-		hideInvisibleKillers(player);
 	};
-	
-	void hideInvisibleKillers(Player player)
-	{
-		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
-			return;
-		// hide all killers from this player!
-		for ( Player other : getOnlinePlayers(new PlayerFilter().team(killer).exclude(player)) )
-			if ( other != player )
-				Helper.hidePlayer(player, other);
-	}
 	
 	@Override
 	public void playerQuit(OfflinePlayer player)
@@ -919,6 +911,12 @@ public class KillerOnTheLoose extends GameMode
 	{	
 		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 			event.setDeathMessage(ChatColor.RED + event.getEntity().getName() + " died");
+		else if ( killerType.getValue() == KillerType.CRAZY_KILLER && getTeam(event.getEntity()) == killer)
+		{
+			// if crazy killer dies, they respawn, but don't drop anything
+			event.getDrops().clear();
+			return;
+		}
 		
 		boolean killerAllocated = getPlayers(new PlayerFilter().includeSpectators().team(killer)).size() != 0;
 		if ( killerAllocated )
@@ -928,6 +926,15 @@ public class KillerOnTheLoose extends GameMode
 		}
 	}
 
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void onRespawn(PlayerRespawnEvent event)
+	{
+		if ( killerType.getValue() != KillerType.CRAZY_KILLER || getTeam(event.getPlayer()) != killer )
+			return;
+		
+		giveCrazyKillerItems(event.getPlayer().getInventory(), getOnlinePlayers(new PlayerFilter().team(survivors)).size());
+	}
+	
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onPlayerInteract(PlayerInteractEvent event)
 	{
@@ -978,11 +985,21 @@ public class KillerOnTheLoose extends GameMode
 		}
 		else
 		{// make them visible for a period of time
-			Helper.makePlayerVisibleToAll(getGame(), victim);
-			victim.sendMessage(ChatColor.RED + "You can be seen!");
+			setVisibility(victim, true);
 		}
 		
 		restoreMessageProcessID = getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new RestoreInvisibility(victim.getName()), 100L); // 5 seconds
+	}
+	
+	private void setVisibility(Player player, boolean visible)
+	{
+		if ( visible )
+		{
+			player.removePotionEffect(PotionEffectType.INVISIBILITY);
+			player.sendMessage(ChatColor.RED + "You can be seen!");
+		}
+		else
+			player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false), true);
 	}
 	
     class RestoreInvisibility implements Runnable
@@ -999,71 +1016,10 @@ public class KillerOnTheLoose extends GameMode
 			if ( player == null || !player.isOnline() || Helper.isSpectator(getGame(), player) )
 				return; // only if the player is still in the game
 			
-			ItemStack heldItem = player.getItemInHand();
-			if ( heldItem != null && isWeapon(heldItem.getType()) )
-			{
-				player.sendMessage("You will be invisible when you put your weapon away");
-			}
-			else
-			{
-				Helper.makePlayerInvisibleToAll(getGame(), player);
-				player.sendMessage("You are now invisible again");
-			}
+			setVisibility(player, false);
+			player.sendMessage("You are now invisible again");
 			restoreMessageProcessID = -1;
     	}
-    }
-    
-	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-	public void playerItemSwitch(PlayerItemHeldEvent event)
-    {
-		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
-			return;
-
-		if ( getTeam(event.getPlayer()) != killer )
-			return;
-		
-		Player player = event.getPlayer();
-		ItemStack prevItem = player.getInventory().getItem(event.getPreviousSlot());
-		ItemStack newItem = player.getInventory().getItem(event.getNewSlot());
-		
-		boolean prevIsWeapon = prevItem != null && isWeapon(prevItem.getType());
-		boolean newIsWeapon = newItem != null && isWeapon(newItem.getType());
-		
-		if ( prevIsWeapon == newIsWeapon || restoreMessageProcessID != -1 ) // if they're already visible because of damage, change nothing
-			return;
-		
-		if ( newIsWeapon )
-		{
-			Helper.makePlayerVisibleToAll(getGame(), player);
-			player.sendMessage(ChatColor.RED + "You can be seen!");
-		}
-		else if ( !newIsWeapon )
-		{
-			Helper.makePlayerInvisibleToAll(getGame(), player);
-			player.sendMessage("You are now invisible again");	
-		}
-    }
-
-	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-	public void playerDroppedItem(PlayerDropItemEvent event)
-	{
-		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
-			return;
-		
-		Player player = event.getPlayer();
-		
-		if ( getTeam(player) != killer )
-			return;
-		
-		// if they currently have nothing in their hand, assume they just dropped this weapon
-		if ( player.getItemInHand() != null )
-			return;
-		
-		if ( restoreMessageProcessID == -1 && isWeapon(player.getItemInHand().getType()) )
-		{
-			Helper.makePlayerInvisibleToAll(getGame(), player);
-			player.sendMessage("You are now invisible again");	
-		}
     }
 
 	@EventHandler(ignoreCancelled = true)
@@ -1071,75 +1027,8 @@ public class KillerOnTheLoose extends GameMode
 	{
 		if ( killerType.getValue() == KillerType.CRAZY_KILLER && event.getItem().getItemStack().getType() == Material.DIRT && getTeam(event.getPlayer()) == killer )
 			event.getItem().getItemStack().setType(Material.TNT);
-		
-		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER
-				|| !isWeapon(event.getItem().getItemStack().getType())
-				|| getTeam(event.getPlayer()) != killer )
-			return;
-		
-		final Player player = event.getPlayer();
-		
-		// wait a bit, for the item to actually get INTO their inventory. Then make them visible, if its in their hand
-		getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
-			public void run()
-			{
-				ItemStack item = player.getItemInHand(); 
-				if ( restoreMessageProcessID == -1 && item != null && isWeapon(item.getType()) )
-				{
-					Helper.makePlayerVisibleToAll(getGame(), player);
-					player.sendMessage(ChatColor.RED + "You can be seen!");
-				}
-			}
-		}, 10); // hopefully long enough for pickup
 	}
 
-	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-	public void playerInventoryClick(InventoryClickEvent event)
-	{
-		if ( killerType.getValue() != KillerType.INVISIBLE_KILLER )
-			return;
-			
-		final Player player = (Player)event.getWhoClicked();
-    	if ( player == null )
-    		return;
-	
-		if ( getTeam(player) != killer )
-			return;
-		
-		// rather than work out all the click crap, let's just see if it changes
-		ItemStack item = player.getItemInHand();
-		final boolean weaponBefore = item != null && isWeapon(item.getType());
-		
-		getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
-			public void run()
-			{
-				ItemStack item = player.getItemInHand(); 
-				if ( item == null )
-					return;
-				
-				boolean weaponAfter = isWeapon(item.getType());
-				if ( weaponBefore == weaponAfter || restoreMessageProcessID != -1)
-					return;
-				
-				if ( weaponAfter )
-				{
-					Helper.makePlayerVisibleToAll(getGame(), player);
-					player.sendMessage(ChatColor.RED + "You can be seen!");
-				}
-				else if ( !weaponAfter )
-				{
-					Helper.makePlayerInvisibleToAll(getGame(), player);
-					player.sendMessage("You are now invisible again");	
-				}
-			}
-		}, 1);
-	}
-	
-    private boolean isWeapon(Material mat)
-    {
-    	return mat == Material.BOW || mat == Material.IRON_SWORD || mat == Material.STONE_SWORD || mat == Material.DIAMOND_SWORD || mat == Material.WOOD_SWORD || mat == Material.GOLD_SWORD;
-    }
-    
     @EventHandler(priority = EventPriority.HIGH)
 	public void onPrepareCraft(PrepareItemCraftEvent event)
 	{
