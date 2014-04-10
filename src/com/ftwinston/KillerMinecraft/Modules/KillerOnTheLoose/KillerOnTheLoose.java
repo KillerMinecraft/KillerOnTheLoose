@@ -886,12 +886,12 @@ public class KillerOnTheLoose extends GameMode
 		// eyes of ender can be made to seek out nether fortresses
 		else if ( event.getPlayer().getWorld().getEnvironment() == Environment.NETHER && event.getPlayer().getItemInHand() != null && event.getPlayer().getItemInHand().getType() == Material.EYE_OF_ENDER && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) )
 		{
-			Location target = KillerMinecraft.craftBukkitHelper().findNearestNetherFortress(event.getPlayer().getLocation());
+			Location target = Helper.findNearestNetherFortress(event.getPlayer().getLocation());
 			if ( target == null )
 				event.getPlayer().sendMessage("No nether fortresses nearby");
 			else
 			{
-				KillerMinecraft.craftBukkitHelper().createFlyingEnderEye(event.getPlayer(), target);
+				Helper.createFlyingEnderEye(event.getPlayer(), target);
 				event.getPlayer().getItemInHand().setAmount(event.getPlayer().getItemInHand().getAmount() - 1);				
 			}
 			
