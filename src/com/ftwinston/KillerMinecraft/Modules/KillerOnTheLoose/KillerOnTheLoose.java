@@ -442,23 +442,23 @@ public class KillerOnTheLoose extends GameMode
 	{
 		int numAlive = getOnlinePlayers(new PlayerFilter()).size();
 		int numAliveKillers = getOnlinePlayers(new PlayerFilter().team(killer)).size();
-		
-		if ( numAlive == 0 )
+
+		if ( numAlive < 3 )
 			return;
-		
+
 		// 1-5 players should have 1 killer. 6-11 should have 2. 12-17 should have 3. 18-23 should have 4. 
 		int targetNumKillers = numAlive / 6 + 1;
 		int numToAdd = targetNumKillers - numAliveKillers;
-		
+
 		if ( numToAdd <= 0 )
 			return;
 
 		// pick players
-		List<Player> players = getOnlinePlayers(new PlayerFilter().team(survivors));
-		float numFriendliesPerKiller = (float)(players.size() - numToAdd) / (float)(numAliveKillers + numToAdd);
+		List<Player> friendlies = getOnlinePlayers(new PlayerFilter().team(survivors));
+		float numFriendliesPerKiller = (float)(friendlies.size() - numToAdd) / (float)(numAliveKillers + numToAdd);
 		for ( int i=0; i<numToAdd; i++ )
 		{
-			Player player = Helper.selectRandom(players);
+			Player player = Helper.selectRandom(friendlies);
 			if ( player == null )
 			{
 				broadcastMessage("Error selecting player to allocate as the killer");
@@ -468,11 +468,11 @@ public class KillerOnTheLoose extends GameMode
 			setTeam(player,  killer);
 			prepareKiller(player, numToAdd, numFriendliesPerKiller);
 		}
-		
-		players = getOnlinePlayers(new PlayerFilter().includeSpectators().team(survivors)); // some have moved to the killer team now, so re-select
-		String message = ChatColor.YELLOW + (numToAdd == 1 ? "A killer has been allocated. You are not the killer!" : numToAdd + " killers have been allocated. You are not a killer!"); 
-				
-		for ( Player player : players )
+
+		friendlies = getOnlinePlayers(new PlayerFilter().includeSpectators().team(survivors)); // some have moved to the killer team now, so re-select
+		String message = ChatColor.YELLOW + (numToAdd == 1 ? "A killer has been allocated. You are not the killer!" : numToAdd + " killers have been allocated. You are not a killer!");
+
+		for ( Player player : friendlies )
 			player.sendMessage(message);
 	}
 	
