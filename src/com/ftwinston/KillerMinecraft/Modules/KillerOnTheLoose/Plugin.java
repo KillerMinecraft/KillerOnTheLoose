@@ -8,6 +8,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
+import org.bukkit.material.SpawnEgg;
 
 import com.ftwinston.KillerMinecraft.GameMode;
 import com.ftwinston.KillerMinecraft.GameModePlugin;
@@ -48,35 +49,50 @@ public class Plugin extends GameModePlugin
 		
 		// add recipes to create monster eggs using an iron ingot and a drop from that particular monster
 		ItemStack stack = new ItemStack(Material.MONSTER_EGG, 1);
-		stack.getData().setData((byte)EntityType.SPIDER.getTypeId());
+		SpawnEgg data = (SpawnEgg)stack.getData();
+		data.setSpawnedType(EntityType.SPIDER);
+		data.update();
+		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.STRING);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		stack.getData().setData((byte)EntityType.ZOMBIE.getTypeId());
+		SpawnEgg data = (SpawnEgg)stack.getData();
+		data.setSpawnedType(EntityType.ZOMBIE);
+		data.update();
+		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.ROTTEN_FLESH);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		stack.getData().setData((byte)EntityType.CREEPER.getTypeId());
+		SpawnEgg data = (SpawnEgg)stack.getData();
+		data.setSpawnedType(EntityType.CREEPER);
+		data.update();
+		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.SULPHUR);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		stack.getData().setData((byte)EntityType.SKELETON.getTypeId());
+		SpawnEgg data = (SpawnEgg)stack.getData();
+		data.setSpawnedType(EntityType.SKELETON);
+		data.update();
+		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.BONE);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		stack.getData().setData((byte)EntityType.SLIME.getTypeId());
+		SpawnEgg data = (SpawnEgg)stack.getData();
+		data.setSpawnedType(EntityType.SLIME);
+		data.update();
+		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.SLIME_BALL);
 		shapeless.addIngredient(Material.IRON_INGOT);
