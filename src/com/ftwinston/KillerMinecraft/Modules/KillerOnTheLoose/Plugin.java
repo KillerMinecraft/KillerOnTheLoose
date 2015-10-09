@@ -51,7 +51,7 @@ public class Plugin extends GameModePlugin
 		ItemStack stack = new ItemStack(Material.MONSTER_EGG, 1);
 		SpawnEgg data = (SpawnEgg)stack.getData();
 		data.setSpawnedType(EntityType.SPIDER);
-		data.update();
+		stack.setData(data);
 		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.STRING);
@@ -59,9 +59,9 @@ public class Plugin extends GameModePlugin
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		SpawnEgg data = (SpawnEgg)stack.getData();
+		data = (SpawnEgg)stack.getData();
 		data.setSpawnedType(EntityType.ZOMBIE);
-		data.update();
+		stack.setData(data);
 		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.ROTTEN_FLESH);
@@ -69,9 +69,9 @@ public class Plugin extends GameModePlugin
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		SpawnEgg data = (SpawnEgg)stack.getData();
+		data = (SpawnEgg)stack.getData();
 		data.setSpawnedType(EntityType.CREEPER);
-		data.update();
+		stack.setData(data);
 		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.SULPHUR);
@@ -79,9 +79,9 @@ public class Plugin extends GameModePlugin
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		SpawnEgg data = (SpawnEgg)stack.getData();
+		data = (SpawnEgg)stack.getData();
 		data.setSpawnedType(EntityType.SKELETON);
-		data.update();
+		stack.setData(data);
 		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.BONE);
@@ -89,9 +89,9 @@ public class Plugin extends GameModePlugin
 		recipes.add(shapeless);
 		
 		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		SpawnEgg data = (SpawnEgg)stack.getData();
+		data = (SpawnEgg)stack.getData();
 		data.setSpawnedType(EntityType.SLIME);
-		data.update();
+		stack.setData(data);
 		
 		shapeless = new ShapelessRecipe(stack);
 		shapeless.addIngredient(Material.SLIME_BALL);

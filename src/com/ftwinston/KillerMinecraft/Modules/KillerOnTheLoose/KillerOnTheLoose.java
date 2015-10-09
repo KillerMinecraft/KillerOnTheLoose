@@ -4,7 +4,6 @@ import java.util.List;
 
 import com.ftwinston.KillerMinecraft.GameMode;
 import com.ftwinston.KillerMinecraft.Helper;
-import com.ftwinston.KillerMinecraft.KillerMinecraft;
 import com.ftwinston.KillerMinecraft.Option;
 import com.ftwinston.KillerMinecraft.PlayerFilter;
 import com.ftwinston.KillerMinecraft.Configuration.ChoiceOption;
