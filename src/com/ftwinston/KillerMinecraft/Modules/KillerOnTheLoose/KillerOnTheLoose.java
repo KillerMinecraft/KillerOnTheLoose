@@ -775,7 +775,7 @@ public class KillerOnTheLoose extends GameMode
 		getPlugin().getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), new Runnable() {
 			public void run()
 			{
-				OfflinePlayer player2 = getPlugin().getServer().getPlayerExact(playerName);
+				OfflinePlayer player2 = Helper.getOfflinePlayer(playerName);
 				
 				if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 				{
@@ -942,7 +942,7 @@ public class KillerOnTheLoose extends GameMode
     	
     	public void run()
     	{
-			Player player = getPlugin().getServer().getPlayerExact(name);
+			Player player = Helper.getPlayer(name);
 			if ( player == null || !player.isOnline() || Helper.isSpectator(getGame(), player) )
 				return; // only if the player is still in the game
 			
