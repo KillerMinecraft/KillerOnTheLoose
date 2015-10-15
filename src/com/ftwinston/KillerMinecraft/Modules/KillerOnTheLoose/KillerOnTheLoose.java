@@ -81,7 +81,6 @@ public class KillerOnTheLoose extends GameMode
 		
 		ghastTearVictory = new ToggleOption("Ghast tear victory", true, "When enabled, friendly players can", "win by returning a ghast tear or", "a blaze rod. When disabled, they", "can only win with a blaze rod.");
 		allowCraftingMonsters = new ToggleOption("Allow crafting monsters", true, "Adds recipes for crafting monster", "eggs by combining a common", "monster drop with an iron ingot.");
-		
 		return new Option[] { killerType, ghastTearVictory, allowCraftingMonsters };
 	}
 
@@ -174,8 +173,11 @@ public class KillerOnTheLoose extends GameMode
 				return "Eyes of ender will help you find nether fortresses (to get blaze rods).\nThey can be crafted from an ender pearl and a spider eye.";
 				
 			case 7:
-				return allowCraftingMonsters.isEnabled() ? "Several monster eggs can be crafted by combining one of their dropped items with an iron ingot." : null;
+				return "If you spend more than 5 minutes far from other players, you will start to feel unwell... this will get worse until you are close to another player.";
+				
 			case 8:
+				return allowCraftingMonsters.isEnabled() ? "Several monster eggs can be crafted by combining one of their dropped items with an iron ingot." : null;
+			case 9:
 				return allowCraftingMonsters.isEnabled() ? "Dispensers can be crafted using a sapling instead of a bow. These work well with monster eggs." : null;
 				
 			default:
@@ -313,8 +315,9 @@ public class KillerOnTheLoose extends GameMode
 		return Helper.getSafeSpawnLocationNear(spawnPoint);
 	}
 
-	int allocationProcessID = -1, restoreMessageProcessID = -1;
+	int allocationProcessID = -1, distanceCheckProcessID = -1, restoreMessageProcessID = -1;
 	Location plinthLoc;
+	DistanceEffectHandler distanceEffectHandler = null;
 	
 	@Override
 	public void gameStarted()
@@ -339,7 +342,7 @@ public class KillerOnTheLoose extends GameMode
 					if ( time < lastRun ) // time of day has gone backwards: must be a new day! Allocate the killers
 					{
 						allocateMysteryKiller();
-						getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
+						getScheduler().cancelTask(allocationProcessID);
 						
 						allocationProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), new Runnable() {
 							public void run()
@@ -352,6 +355,10 @@ public class KillerOnTheLoose extends GameMode
 					lastRun = time;
 				}
 			}, 600L, 100L); // initial wait: 30s, then check every 5s (still won't try to assign unless it detects a new day starting)
+			
+			
+			distanceEffectHandler = new DistanceEffectHandler(this);
+			distanceCheckProcessID = getPlugin().getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), distanceEffectHandler, 50L, 50L); // check distance every 2.5 seconds
 		}
 		
 		List<Player> killerPlayers = getOnlinePlayers(new PlayerFilter().includeSpectators().team(killer));
@@ -719,13 +726,22 @@ public class KillerOnTheLoose extends GameMode
 		// stop our scheduled processes
 		if ( allocationProcessID != -1 )
 		{
-			getPlugin().getServer().getScheduler().cancelTask(allocationProcessID);
+			getScheduler().cancelTask(allocationProcessID);
 			allocationProcessID = -1;
 		}
 		
+		if ( distanceCheckProcessID != -1 )
+		{
+			getScheduler().cancelTask(distanceCheckProcessID);
+			distanceCheckProcessID = -1;
+		}
+		
+		if (distanceEffectHandler != null)
+			distanceEffectHandler.stopPlayerProcesses();
+		
 		if ( restoreMessageProcessID != -1 )
 		{
-			getPlugin().getServer().getScheduler().cancelTask(restoreMessageProcessID);
+			getScheduler().cancelTask(restoreMessageProcessID);
 			restoreMessageProcessID = -1;
 		}
 		
