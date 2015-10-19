@@ -34,6 +34,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scoreboard.NameTagVisibility;
+import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.Material;
 
 public class KillerOnTheLoose extends GameMode
@@ -91,7 +93,9 @@ public class KillerOnTheLoose extends GameMode
 		if ( killerType.getValue() == KillerType.MYSTERY_KILLER )
 			return Bukkit.getScoreboardManager().getMainScoreboard();
 		
-		return super.createScoreboard();
+		Scoreboard sb = super.createScoreboard();
+		survivors.getScoreboardTeam().setNameTagVisibility(NameTagVisibility.ALWAYS);
+		return sb;
 	}
 	
 	@Override
