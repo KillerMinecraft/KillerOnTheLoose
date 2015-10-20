@@ -27,6 +27,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -977,6 +978,13 @@ public class KillerOnTheLoose extends GameMode
 	{
 		if ( killerType.getValue() == KillerType.CRAZY_KILLER && event.getItem().getItemStack().getType() == Material.DIRT && getTeam(event.getPlayer()) == killer )
 			event.getItem().getItemStack().setType(Material.TNT);
+	}
+
+	@EventHandler(ignoreCancelled = true)
+	public void playerDroppedItem(PlayerDropItemEvent event)
+	{
+		if ( killerType.getValue() == KillerType.CRAZY_KILLER && event.getItemDrop().getItemStack().getType() == Material.TNT && getTeam(event.getPlayer()) == killer )
+			event.getItemDrop().getItemStack().setType(Material.DIRT);
 	}
 
     @EventHandler(priority = EventPriority.HIGH)
