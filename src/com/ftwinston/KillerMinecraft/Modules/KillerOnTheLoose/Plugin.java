@@ -48,52 +48,32 @@ public class Plugin extends GameModePlugin
 		recipes.add(shapeless);
 		
 		// add recipes to create monster eggs using an iron ingot and a drop from that particular monster
-		ItemStack stack = new ItemStack(Material.MONSTER_EGG, 1);
-		SpawnEgg data = (SpawnEgg)stack.getData();
-		data.setSpawnedType(EntityType.SPIDER);
-		stack.setData(data);
-		
-		shapeless = new ShapelessRecipe(stack);
+		SpawnEgg data = new SpawnEgg(EntityType.SPIDER);
+		shapeless = new ShapelessRecipe(data.toItemStack(1));
 		shapeless.addIngredient(Material.STRING);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
-		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		data = (SpawnEgg)stack.getData();
-		data.setSpawnedType(EntityType.ZOMBIE);
-		stack.setData(data);
-		
-		shapeless = new ShapelessRecipe(stack);
+		data = new SpawnEgg(EntityType.ZOMBIE);
+		shapeless = new ShapelessRecipe(data.toItemStack(1));
 		shapeless.addIngredient(Material.ROTTEN_FLESH);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
-		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		data = (SpawnEgg)stack.getData();
-		data.setSpawnedType(EntityType.CREEPER);
-		stack.setData(data);
-		
-		shapeless = new ShapelessRecipe(stack);
+		data = new SpawnEgg(EntityType.CREEPER);
+		shapeless = new ShapelessRecipe(data.toItemStack(1));
 		shapeless.addIngredient(Material.SULPHUR);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
-		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		data = (SpawnEgg)stack.getData();
-		data.setSpawnedType(EntityType.SKELETON);
-		stack.setData(data);
-		
-		shapeless = new ShapelessRecipe(stack);
+		data = new SpawnEgg(EntityType.SKELETON);
+		shapeless = new ShapelessRecipe(data.toItemStack(1));
 		shapeless.addIngredient(Material.BONE);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
 		
-		stack = new ItemStack(Material.MONSTER_EGG, 1);
-		data = (SpawnEgg)stack.getData();
-		data.setSpawnedType(EntityType.SLIME);
-		stack.setData(data);
-		
-		shapeless = new ShapelessRecipe(stack);
+		data = new SpawnEgg(EntityType.SLIME);
+		shapeless = new ShapelessRecipe(data.toItemStack(1));
 		shapeless.addIngredient(Material.SLIME_BALL);
 		shapeless.addIngredient(Material.IRON_INGOT);
 		recipes.add(shapeless);
