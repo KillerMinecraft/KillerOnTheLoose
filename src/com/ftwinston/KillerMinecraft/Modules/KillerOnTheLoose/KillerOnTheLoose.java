@@ -1,5 +1,6 @@
 package com.ftwinston.KillerMinecraft.Modules.KillerOnTheLoose;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import com.ftwinston.KillerMinecraft.GameMode;
@@ -116,179 +117,167 @@ public class KillerOnTheLoose extends GameMode
 	}
 
 	@Override
-	public String getHelpMessage(int num, TeamInfo team)
+	public List<String> getHelpMessages(TeamInfo team)
 	{
 		switch ( killerType.getValue() )
 		{
 		case MYSTERY_KILLER:
-			return getHelpMessageMysteryKiler(num, team);
+			return getHelpMessageMysteryKiler(team);
 		case INVISIBLE_KILLER:
-			return getHelpMessageInvisibleKiler(num, team);
+			return getHelpMessageInvisibleKiler(team);
 		case CRAZY_KILLER:
-			return getHelpMessageCrazyKiler(num, team);
+			return getHelpMessageCrazyKiler(team);
 		default:
-			return null;
+			return new LinkedList<String>();
 		}
 	}
 
-	public String getHelpMessageMysteryKiler(int num, TeamInfo team)
+	public List<String> getHelpMessageMysteryKiler(TeamInfo team)
 	{
-		switch ( num )
+		LinkedList<String> messages = new LinkedList<String>();
+
+		if ( team == killer )
+			messages.add("You have been chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will have been chosen.\nNo one else has been told who was chosen.");
+		else if ( getPlayers(new PlayerFilter().team(killer)).size() > 0 )
+			messages.add("(At least) one player has been chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else has been told who they are.");
+		else
+			messages.add("At the start of the next game day, a player will be chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else will be told who they are.");
+
+		if ( team == killer )
+			messages.add("As a killer, you win if all the friendly players die. You won't be told who the other killers are.");
+		else
+			messages.add("The killer(s) win if everyone else dies... so watch your back!");
+	
+		String message = "To win, the other players must bring a ";
+		
+		message += Helper.tidyItemName(winningItems[0]);
+		
+		if ( winningItems.length > 1 )
 		{
-			case 0:
-				if ( team == killer )
-					return "You have been chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will have been chosen.\nNo one else has been told who was chosen.";
-				else if ( getPlayers(new PlayerFilter().team(killer)).size() > 0 )
-					return "(At least) one player has been chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else has been told who they are.";
-				else
-					return "At the start of the next game day, a player will be chosen to try and kill everyone else.\nIf there are many players in the game, multiple players will be chosen.\nNo one else will be told who they are.";
-			case 1:
-				if ( team == killer )
-					return "As a killer, you win if all the friendly players die. You won't be told who the other killers are.";
-				else
-					return "The killer(s) win if everyone else dies... so watch your back!";
-			case 2:
-				String message = "To win, the other players must bring a ";
-				
-				message += Helper.tidyItemName(winningItems[0]);
-				
-				if ( winningItems.length > 1 )
-				{
-					for ( int i=1; i<winningItems.length-1; i++)
-						message += ", a " + Helper.tidyItemName(winningItems[i]);
-					
-					message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
-				}
-				
-				message += " to the plinth near the spawn.";
-				return message;
-			case 3:
-				return "The other players will not automatically win when all the killers are dead, and additional killers may be assigned to replace dead ones.";
-
-			case 4:
-				return "Death messages won't say how someone died, or who killed them.";
+			for ( int i=1; i<winningItems.length-1; i++)
+				message += ", a " + Helper.tidyItemName(winningItems[i]);
 			
-			case 5:
-				if ( team == killer )
-					return "If you make a compass, it will point at the nearest player. This won't work for other players.";
-				else
-					return "If a killer makes a compass, it will point at the nearest player. This won't work for other players.";
-
-			case 6:
-				return "Eyes of ender will help you find nether fortresses (to get blaze rods).\nThey can be crafted from an ender pearl and a spider eye.";
-				
-			case 7:
-				return "If you spend more than 5 minutes far from other players, you will start to feel unwell... this will get worse until you are close to another player.";
-				
-			case 8:
-				return allowCraftingMonsters.isEnabled() ? "Several monster eggs can be crafted by combining one of their dropped items with an iron ingot." : null;
-			case 9:
-				return allowCraftingMonsters.isEnabled() ? "Dispensers can be crafted using a sapling instead of a bow. These work well with monster eggs." : null;
-				
-			default:
-				return null;
+			message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
 		}
+		
+		message += " to the plinth near the spawn.";
+		messages.add(message);
+		
+		messages.add("The other players will not automatically win when all the killers are dead, and additional killers may be assigned to replace dead ones.");
+		messages.add("Death messages won't say how someone died, or who killed them.");
+	
+		if ( team == killer )
+			messages.add("If you make a compass, it will point at the nearest player. This won't work for other players.");
+		else
+			messages.add("If a killer makes a compass, it will point at the nearest player. This won't work for other players.");
+	
+		messages.add("Eyes of ender will help you find nether fortresses (to get blaze rods).\nThey can be crafted from an ender pearl and a spider eye.");
+		
+		messages.add("If you spend more than 5 minutes far from other players, you will start to feel unwell... this will get worse until you are close to another player.");
+		
+		if (allowCraftingMonsters.isEnabled())
+		{
+			messages.add("Several monster eggs can be crafted by combining one of their dropped items with an iron ingot.");
+			messages.add("Dispensers can be crafted using a sapling instead of a bow. These work well with monster eggs.");
+		}
+		
+		return messages;
 	}
 	
-	public String getHelpMessageInvisibleKiler(int num, TeamInfo team)
+	public List<String> getHelpMessageInvisibleKiler(TeamInfo team)
 	{
-		switch ( num )
+		LinkedList<String> messages = new LinkedList<String>();
+		
+		if ( team == killer )
+			messages.add("You have been chosen to be the killer, and must kill everyone else.\nYou are invisible, but they know who you are.");
+		else
+			messages.add("A player has been chosen to be the killer, and must kill everyone else.\nThey are invisible!");
+	
+		if ( team == killer )
+			messages.add("If they look closely, other players will see the grey particles that you emit.");
+		else
+			messages.add("If you look closely, you will see the grey particles that the killer emits.");
+			
+		if ( team == killer )
+			messages.add("Your items and armor will be visible to other players\nYour compass points at the nearest player.");
+		else
+			messages.add("Items wielded by the killer will be still visible.\nThe killer's compass points at the nearest player.");
+
+		if ( team == killer )
+			messages.add("You will briefly become visible when damaged.");
+		else
+			messages.add("The killer will briefly become visible when damaged.");
+
+		messages.add("The other players get infinity bows.");
+
+		String message = "To win, the other players must kill the killer, or bring a ";
+	
+		message += Helper.tidyItemName(winningItems[0]);
+		
+		if ( winningItems.length > 1 )
 		{
-			case 0:
-				if ( team == killer )
-					return "You have been chosen to be the killer, and must kill everyone else.\nYou are invisible, but they know who you are.";
-				else
-					return "A player has been chosen to be the killer, and must kill everyone else.\nThey are invisible!";
-			case 1:
-				if ( team == killer )
-					return "If they look closely, other players will see the grey particles that you emit.";
-				else
-					return "If you look closely, you will see the grey particles that the killer emits.";
-			case 2:
-				if ( team == killer )
-					return "Your items and armor will be visible to other players\nYour compass points at the nearest player.";
-				else
-					return "Items wielded by the killer will be still visible.\nThe killer's compass points at the nearest player.";
-			case 3:
-				if ( team == killer )
-					return "You will briefly become visible when damaged.";
-				else
-					return "The killer will briefly become visible when damaged.";
-			case 4:
-				return "The other players get infinity bows.";
-			case 5:
-				String message = "To win, the other players must kill the killer, or bring a ";
+			for ( int i=1; i<winningItems.length-1; i++)
+				message += ", a " + Helper.tidyItemName(winningItems[i]);
 			
-				message += Helper.tidyItemName(winningItems[0]);
-				
-				if ( winningItems.length > 1 )
-				{
-					for ( int i=1; i<winningItems.length-1; i++)
-						message += ", a " + Helper.tidyItemName(winningItems[i]);
-					
-					message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
-				}
-				
-				message += " to the plinth near the spawn.";
-				return message;
-			
-			default:
-				return null;
+			message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
 		}
+		
+		message += " to the plinth near the spawn.";
+		messages.add(message);
+
+		return messages;
 	}
 	
-	public String getHelpMessageCrazyKiler(int num, TeamInfo team)
+	public List<String> getHelpMessageCrazyKiler(TeamInfo team)
 	{
-		switch ( num )
-		{
-			case 0:
-				if ( team == killer )
-					return "You have been chosen to be the killer, and must kill everyone else. They know who you are.";
-				else
-					return "A player has been chosen to be the killer, and must kill everyone else.";
-			case 1:
-				if ( team == killer )
-					return "Every dirt block you pick up will turn into TNT, so have fun with that.";
-				else
-					return "Every dirt block the killer picks up will turn into TNT, so beware.";
-			case 2:
-				if ( team == killer )
-					return "The other players each start with a sword, so avoid a direct fight.";
-				else
-					return "The killer doesn't start with a sword, but all the other players do.";
-			case 3:
-				if ( team == killer )
-					return "Your compass will point at the nearest player.";
-				else
-					return "The killer starts with a compass, which points at the nearest player.";
-			case 4:
-				if ( team == killer )
-					return "You will respawn, but the other players can't.";
-				else
-					return "The killer can respawn, but the other players can't.";
-			case 5:
-				String message = "The other players win if the killer dies, or if they bring a ";			
-				message += Helper.tidyItemName(winningItems[0]);
-				
-				if ( winningItems.length > 1 )
-				{
-					for ( int i=1; i<winningItems.length-1; i++)
-						message += ", a " + Helper.tidyItemName(winningItems[i]);
-					
-					message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
-				}
-				
-				message += " to the plinth near the spawn.";
-				return message;
-			case 6:
-				if ( team == killer )
-					return "You can make buttons and pressure plates with the stone you started with.\nTry to avoid blowing yourself up!";
-				else
-					return "The killer starts with enough stone and redstone to make plenty buttons, wires and pressure plates.";
+		LinkedList<String> messages = new LinkedList<String>();
+		
+		if ( team == killer )
+			messages.add("You have been chosen to be the killer, and must kill everyone else. They know who you are.");
+		else
+			messages.add("A player has been chosen to be the killer, and must kill everyone else.");
 
-			default:
-				return null;
+		if ( team == killer )
+			messages.add("Every dirt block you pick up will turn into TNT, so have fun with that.");
+		else
+			messages.add("Every dirt block the killer picks up will turn into TNT, so beware.");
+
+		if ( team == killer )
+			messages.add("The other players each start with a sword, so avoid a direct fight.");
+		else
+			messages.add("The killer doesn't start with a sword, but all the other players do.");
+
+		if ( team == killer )
+			messages.add("Your compass will point at the nearest player.");
+		else
+			messages.add("The killer starts with a compass, which points at the nearest player.");
+
+		if ( team == killer )
+			messages.add("You will respawn, but the other players can't.");
+		else
+			messages.add("The killer can respawn, but the other players can't.");
+
+
+		String message = "The other players win if the killer dies, or if they bring a ";			
+		message += Helper.tidyItemName(winningItems[0]);
+		
+		if ( winningItems.length > 1 )
+		{
+			for ( int i=1; i<winningItems.length-1; i++)
+				message += ", a " + Helper.tidyItemName(winningItems[i]);
+			
+			message += " or a " + Helper.tidyItemName(winningItems[winningItems.length-1]);
 		}
+		
+		message += " to the plinth near the spawn.";
+		messages.add(message);
+		
+		if ( team == killer )
+			messages.add("You can make buttons and pressure plates with the stone you started with.\nTry to avoid blowing yourself up!");
+		else
+			messages.add("The killer starts with enough stone and redstone to make plenty buttons, wires and pressure plates.");
+		
+		return messages;
 	}
 	
 	@Override
