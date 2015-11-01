@@ -78,7 +78,7 @@ public class KillerOnTheLoose extends GameMode
 	@Override
 	public Option[] setupOptions()
 	{
-		killerType = new ChoiceOption<KillerType>("Killer type");
+		killerType = new ChoiceOption<KillerType>("Killer type", KillerType.MYSTERY_KILLER);
 		killerType.addChoice("Mystery Killer", KillerType.MYSTERY_KILLER, Material.FLINT_AND_STEEL, "No special powers, but", "Killer's identity is", "kept secret");
 		killerType.addChoice("Invisible Killer", KillerType.INVISIBLE_KILLER, Material.GLASS, "Killer can't be seen,", "but emits particles. Other", "players get infinity bows.");
 		killerType.addChoice("Crazy Killer", KillerType.CRAZY_KILLER, Material.TNT, "Any dirt the Killer", "picks up turns into", "TNT, and their bow fires TNT.");
