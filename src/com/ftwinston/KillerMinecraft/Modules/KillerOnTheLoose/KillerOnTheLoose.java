@@ -551,10 +551,12 @@ public class KillerOnTheLoose extends GameMode
 			message += "You are invisible.";
 			giveInvisibleKillerItems(player.getInventory(), numSurvivorsPerKiller);
 			setVisibility(player, false);
+			player.setSleepingIgnored(true);
 			break;
 		case CRAZY_KILLER:
 			message += "Every dirt block you pick up will turn into TNT...";
 			giveCrazyKillerItems(player.getInventory(), numSurvivorsPerKiller);
+			player.setSleepingIgnored(true);
 			break;
 		}
 		
