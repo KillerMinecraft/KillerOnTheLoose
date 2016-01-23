@@ -829,7 +829,7 @@ public class KillerOnTheLoose extends GameMode
 						broadcastMessage(ChatColor.YELLOW + "Everybody died - nobody wins!");
 					else if ( team == killer )
 						broadcastMessage(ChatColor.YELLOW + "The killer died - the friendly players win!");
-					else
+					else if (numSurvivorsOnTeam == 0)
 						broadcastMessage(ChatColor.YELLOW + "All the friendly players died - the killer wins!");
 
 					finishGame();
